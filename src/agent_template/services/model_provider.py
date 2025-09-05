@@ -41,6 +41,9 @@ class ProviderType(str, Enum):
     LOCAL = "local"
     AZURE = "azure"
     GOOGLE = "google"
+    DEEPSEEK = "deepseek"
+    QWEN = "qwen"
+    OLLAMA = "ollama"
 
 
 @dataclass
@@ -704,6 +707,477 @@ class LocalProvider(ModelProvider):
         return self._models.get(model_id)
 
 
+class DeepSeekProvider(ModelProvider):
+    """DeepSeek API provider (OpenAI-compatible)."""
+    
+    def __init__(self):
+        super().__init__(ProviderType.DEEPSEEK)
+        self.api_key = settings.models.deepseek_api_key
+        self.base_url = settings.models.deepseek_base_url
+    
+    async def initialize(self) -> None:
+        """Initialize DeepSeek client."""
+        if not self.api_key:
+            raise ValueError("DeepSeek API key not configured")
+        
+        try:
+            import openai
+            self.client = openai.AsyncOpenAI(
+                api_key=self.api_key,
+                base_url=f"{self.base_url}/v1"
+            )
+            
+            await self._load_models()
+            logger.info("DeepSeek provider initialized")
+            
+        except ImportError:
+            raise RuntimeError("openai package not installed. Run: pip install openai")
+    
+    async def chat_completion(
+        self, 
+        request: ModelRequest
+    ) -> Union[ModelResponse, AsyncGenerator[str, None]]:
+        """Generate chat completion using DeepSeek (OpenAI-compatible API)."""
+        if not await self.validate_request(request):
+            raise ValueError("Invalid request for model")
+        
+        # Convert messages to OpenAI format
+        openai_messages = self._convert_messages(request.messages)
+        
+        kwargs = {
+            "model": request.model,
+            "messages": openai_messages,
+            "temperature": request.temperature,
+            "stream": request.stream,
+            **request.provider_options
+        }
+        
+        if request.max_tokens:
+            kwargs["max_tokens"] = request.max_tokens
+        
+        start_time = time.time()
+        
+        try:
+            if request.stream:
+                return self._stream_completion(kwargs, start_time)
+            else:
+                response = await self.client.chat.completions.create(**kwargs)
+                return self._parse_response(response, start_time)
+                
+        except Exception as e:
+            logger.error(f"DeepSeek API error: {e}")
+            raise
+    
+    async def _stream_completion(
+        self, 
+        kwargs: Dict[str, Any], 
+        start_time: float
+    ) -> AsyncGenerator[str, None]:
+        """Stream completion from DeepSeek."""
+        try:
+            stream = await self.client.chat.completions.create(**kwargs)
+            
+            async for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+                    
+        except Exception as e:
+            logger.error(f"DeepSeek streaming error: {e}")
+            raise
+    
+    def _parse_response(self, response: Any, start_time: float) -> ModelResponse:
+        """Parse DeepSeek response."""
+        choice = response.choices[0]
+        
+        return ModelResponse(
+            content=choice.message.content or "",
+            model=response.model,
+            usage={
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens
+            },
+            finish_reason=choice.finish_reason,
+            response_time=time.time() - start_time,
+            provider="deepseek"
+        )
+    
+    def _convert_messages(self, messages: List[Message]) -> List[Dict[str, Any]]:
+        """Convert internal messages to OpenAI format."""
+        openai_messages = []
+        
+        for message in messages:
+            openai_msg = {
+                "role": message.role.value,
+                "content": message.get_text_content()
+            }
+            openai_messages.append(openai_msg)
+        
+        return openai_messages
+    
+    async def _load_models(self) -> None:
+        """Load available DeepSeek models."""
+        models = {
+            "deepseek-chat": ModelInfo(
+                id="deepseek-chat",
+                name="DeepSeek Chat",
+                provider=ProviderType.DEEPSEEK,
+                model_type=ModelType.CHAT,
+                max_tokens=4096,
+                context_window=32768,
+                supports_tools=False
+            ),
+            "deepseek-coder": ModelInfo(
+                id="deepseek-coder",
+                name="DeepSeek Coder",
+                provider=ProviderType.DEEPSEEK,
+                model_type=ModelType.CHAT,
+                max_tokens=4096,
+                context_window=16384,
+                supports_tools=False
+            ),
+        }
+        
+        self._models.update(models)
+    
+    async def list_models(self) -> List[ModelInfo]:
+        """List available DeepSeek models."""
+        return list(self._models.values())
+    
+    async def get_model_info(self, model_id: str) -> Optional[ModelInfo]:
+        """Get DeepSeek model information."""
+        return self._models.get(model_id)
+
+
+class QwenProvider(ModelProvider):
+    """Qwen API provider (OpenAI-compatible)."""
+    
+    def __init__(self):
+        super().__init__(ProviderType.QWEN)
+        self.api_key = settings.models.qwen_api_key
+        self.base_url = settings.models.qwen_base_url
+    
+    async def initialize(self) -> None:
+        """Initialize Qwen client."""
+        if not self.api_key:
+            raise ValueError("Qwen API key not configured")
+        
+        try:
+            import openai
+            self.client = openai.AsyncOpenAI(
+                api_key=self.api_key,
+                base_url=self.base_url
+            )
+            
+            await self._load_models()
+            logger.info("Qwen provider initialized")
+            
+        except ImportError:
+            raise RuntimeError("openai package not installed. Run: pip install openai")
+    
+    async def chat_completion(
+        self, 
+        request: ModelRequest
+    ) -> Union[ModelResponse, AsyncGenerator[str, None]]:
+        """Generate chat completion using Qwen (OpenAI-compatible API)."""
+        if not await self.validate_request(request):
+            raise ValueError("Invalid request for model")
+        
+        # Convert messages to OpenAI format
+        openai_messages = self._convert_messages(request.messages)
+        
+        kwargs = {
+            "model": request.model,
+            "messages": openai_messages,
+            "temperature": request.temperature,
+            "stream": request.stream,
+            **request.provider_options
+        }
+        
+        if request.max_tokens:
+            kwargs["max_tokens"] = request.max_tokens
+        
+        start_time = time.time()
+        
+        try:
+            if request.stream:
+                return self._stream_completion(kwargs, start_time)
+            else:
+                response = await self.client.chat.completions.create(**kwargs)
+                return self._parse_response(response, start_time)
+                
+        except Exception as e:
+            logger.error(f"Qwen API error: {e}")
+            raise
+    
+    async def _stream_completion(
+        self, 
+        kwargs: Dict[str, Any], 
+        start_time: float
+    ) -> AsyncGenerator[str, None]:
+        """Stream completion from Qwen."""
+        try:
+            stream = await self.client.chat.completions.create(**kwargs)
+            
+            async for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+                    
+        except Exception as e:
+            logger.error(f"Qwen streaming error: {e}")
+            raise
+    
+    def _parse_response(self, response: Any, start_time: float) -> ModelResponse:
+        """Parse Qwen response."""
+        choice = response.choices[0]
+        
+        return ModelResponse(
+            content=choice.message.content or "",
+            model=response.model,
+            usage={
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens
+            },
+            finish_reason=choice.finish_reason,
+            response_time=time.time() - start_time,
+            provider="qwen"
+        )
+    
+    def _convert_messages(self, messages: List[Message]) -> List[Dict[str, Any]]:
+        """Convert internal messages to OpenAI format."""
+        openai_messages = []
+        
+        for message in messages:
+            openai_msg = {
+                "role": message.role.value,
+                "content": message.get_text_content()
+            }
+            openai_messages.append(openai_msg)
+        
+        return openai_messages
+    
+    async def _load_models(self) -> None:
+        """Load available Qwen models."""
+        models = {
+            "qwen-turbo": ModelInfo(
+                id="qwen-turbo",
+                name="Qwen Turbo",
+                provider=ProviderType.QWEN,
+                model_type=ModelType.CHAT,
+                max_tokens=2048,
+                context_window=8192,
+                supports_tools=True
+            ),
+            "qwen-plus": ModelInfo(
+                id="qwen-plus",
+                name="Qwen Plus",
+                provider=ProviderType.QWEN,
+                model_type=ModelType.CHAT,
+                max_tokens=2048,
+                context_window=32768,
+                supports_tools=True
+            ),
+            "qwen-max": ModelInfo(
+                id="qwen-max",
+                name="Qwen Max",
+                provider=ProviderType.QWEN,
+                model_type=ModelType.CHAT,
+                max_tokens=2048,
+                context_window=32768,
+                supports_tools=True
+            ),
+        }
+        
+        self._models.update(models)
+    
+    async def list_models(self) -> List[ModelInfo]:
+        """List available Qwen models."""
+        return list(self._models.values())
+    
+    async def get_model_info(self, model_id: str) -> Optional[ModelInfo]:
+        """Get Qwen model information."""
+        return self._models.get(model_id)
+
+
+class OllamaProvider(ModelProvider):
+    """Ollama local model provider."""
+    
+    def __init__(self):
+        super().__init__(ProviderType.OLLAMA)
+        self.base_url = settings.models.ollama_base_url
+        self.default_model = settings.models.ollama_model
+    
+    async def initialize(self) -> None:
+        """Initialize Ollama client."""
+        self.client = httpx.AsyncClient(timeout=60.0)
+        
+        try:
+            # Test connection
+            await self._test_connection()
+            await self._load_models()
+            
+            logger.info("Ollama provider initialized", url=self.base_url)
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize Ollama provider: {e}")
+            raise
+    
+    async def _test_connection(self) -> None:
+        """Test connection to Ollama server."""
+        try:
+            response = await self.client.get(f"{self.base_url}/api/tags")
+            response.raise_for_status()
+        except Exception as e:
+            raise ConnectionError(f"Cannot connect to Ollama server: {e}")
+    
+    async def chat_completion(
+        self,
+        request: ModelRequest
+    ) -> Union[ModelResponse, AsyncGenerator[str, None]]:
+        """Generate chat completion using Ollama."""
+        # Convert messages to Ollama format
+        messages = self._convert_messages(request.messages)
+        
+        payload = {
+            "model": request.model,
+            "messages": messages,
+            "stream": request.stream,
+            "options": {
+                "temperature": request.temperature,
+                **(request.provider_options or {})
+            }
+        }
+        
+        if request.max_tokens:
+            payload["options"]["num_predict"] = request.max_tokens
+        
+        start_time = time.time()
+        
+        try:
+            if request.stream:
+                return self._stream_completion(payload, start_time)
+            else:
+                response = await self.client.post(
+                    f"{self.base_url}/api/chat",
+                    json=payload
+                )
+                response.raise_for_status()
+                return self._parse_response(response.json(), start_time)
+                
+        except Exception as e:
+            logger.error(f"Ollama API error: {e}")
+            raise
+    
+    async def _stream_completion(
+        self,
+        payload: Dict[str, Any],
+        start_time: float
+    ) -> AsyncGenerator[str, None]:
+        """Stream completion from Ollama."""
+        try:
+            async with self.client.stream(
+                "POST",
+                f"{self.base_url}/api/chat",
+                json=payload
+            ) as response:
+                response.raise_for_status()
+                
+                async for line in response.aiter_lines():
+                    if line.strip():
+                        try:
+                            data = json.loads(line)
+                            if "message" in data and "content" in data["message"]:
+                                yield data["message"]["content"]
+                        except json.JSONDecodeError:
+                            continue
+                            
+        except Exception as e:
+            logger.error(f"Ollama streaming error: {e}")
+            raise
+    
+    def _parse_response(self, response_data: Dict[str, Any], start_time: float) -> ModelResponse:
+        """Parse Ollama response."""
+        message = response_data.get("message", {})
+        content = message.get("content", "")
+        
+        return ModelResponse(
+            content=content,
+            model=response_data.get("model", self.default_model),
+            usage={
+                "prompt_tokens": response_data.get("prompt_eval_count", 0),
+                "completion_tokens": response_data.get("eval_count", 0),
+                "total_tokens": response_data.get("prompt_eval_count", 0) + response_data.get("eval_count", 0)
+            },
+            finish_reason="stop",
+            response_time=time.time() - start_time,
+            provider="ollama"
+        )
+    
+    def _convert_messages(self, messages: List[Message]) -> List[Dict[str, Any]]:
+        """Convert internal messages to Ollama format."""
+        ollama_messages = []
+        
+        for message in messages:
+            ollama_msg = {
+                "role": message.role.value,
+                "content": message.get_text_content()
+            }
+            ollama_messages.append(ollama_msg)
+        
+        return ollama_messages
+    
+    async def _load_models(self) -> None:
+        """Load available Ollama models."""
+        try:
+            response = await self.client.get(f"{self.base_url}/api/tags")
+            response.raise_for_status()
+            
+            models_data = response.json()
+            models = {}
+            
+            for model_info in models_data.get("models", []):
+                model_name = model_info.get("name", "")
+                if model_name:
+                    # Parse model name (remove tag if present)
+                    base_name = model_name.split(":")[0]
+                    
+                    models[model_name] = ModelInfo(
+                        id=model_name,
+                        name=base_name.title(),
+                        provider=ProviderType.OLLAMA,
+                        model_type=ModelType.CHAT,
+                        max_tokens=2048,
+                        context_window=4096,  # Default, varies by model
+                        supports_streaming=True,
+                        supports_tools=False
+                    )
+            
+            self._models.update(models)
+            logger.info(f"Loaded {len(models)} Ollama models")
+            
+        except Exception as e:
+            logger.warning(f"Could not load Ollama models: {e}")
+            # Add default model
+            self._models[self.default_model] = ModelInfo(
+                id=self.default_model,
+                name=self.default_model.title(),
+                provider=ProviderType.OLLAMA,
+                model_type=ModelType.CHAT,
+                max_tokens=2048,
+                context_window=4096,
+                supports_streaming=True
+            )
+    
+    async def list_models(self) -> List[ModelInfo]:
+        """List available Ollama models."""
+        return list(self._models.values())
+    
+    async def get_model_info(self, model_id: str) -> Optional[ModelInfo]:
+        """Get Ollama model information."""
+        return self._models.get(model_id)
+
+
 class ModelManager:
     """
     Manager for multiple model providers with routing and fallbacks.
@@ -728,6 +1202,19 @@ class ModelManager:
         
         if settings.models.local_model_url:
             self._providers[ProviderType.LOCAL] = LocalProvider()
+        
+        if settings.models.deepseek_api_key:
+            self._providers[ProviderType.DEEPSEEK] = DeepSeekProvider()
+        
+        if settings.models.qwen_api_key:
+            self._providers[ProviderType.QWEN] = QwenProvider()
+        
+        # Ollama is always available if the server is running
+        try:
+            self._providers[ProviderType.OLLAMA] = OllamaProvider()
+        except Exception:
+            # Ollama server not available, skip
+            pass
         
         # Initialize all providers
         for provider in self._providers.values():

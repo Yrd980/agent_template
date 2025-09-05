@@ -38,9 +38,25 @@ mkdir -p data/sessions
 if [ ! -f .env ]; then
     echo "Creating .env file..."
     cat > .env << 'EOF'
-# Model Configuration
+# Model Configuration - Add your API keys here
 OPENAI_API_KEY=your_openai_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here
+
+# DeepSeek Configuration
+DEEPSEEK_API_KEY=your_deepseek_key_here
+DEEPSEEK_MODEL=deepseek-chat
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+
+# Qwen Configuration  
+QWEN_API_KEY=your_qwen_key_here
+QWEN_MODEL=qwen-turbo
+QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+
+# Ollama Configuration (local)
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.1
+
+# Default provider (openai, anthropic, deepseek, qwen, ollama, local)
 DEFAULT_MODEL_PROVIDER=openai
 
 # Server Configuration

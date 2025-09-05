@@ -37,6 +37,20 @@ class ModelConfig(BaseSettings):
     local_model_url: Optional[str] = Field(default=None, env="LOCAL_MODEL_URL")
     local_model_name: Optional[str] = Field(default=None, env="LOCAL_MODEL_NAME")
     
+    # DeepSeek settings
+    deepseek_api_key: Optional[str] = Field(default=None, env="DEEPSEEK_API_KEY")
+    deepseek_model: str = Field(default="deepseek-chat", env="DEEPSEEK_MODEL")
+    deepseek_base_url: str = Field(default="https://api.deepseek.com", env="DEEPSEEK_BASE_URL")
+    
+    # Qwen settings  
+    qwen_api_key: Optional[str] = Field(default=None, env="QWEN_API_KEY")
+    qwen_model: str = Field(default="qwen-turbo", env="QWEN_MODEL")
+    qwen_base_url: str = Field(default="https://dashscope.aliyuncs.com/compatible-mode/v1", env="QWEN_BASE_URL")
+    
+    # Ollama settings
+    ollama_base_url: str = Field(default="http://localhost:11434", env="OLLAMA_BASE_URL")
+    ollama_model: str = Field(default="llama3.1", env="OLLAMA_MODEL")
+    
     # Model parameters
     temperature: float = Field(default=0.7, env="MODEL_TEMPERATURE")
     max_tokens: int = Field(default=4096, env="MODEL_MAX_TOKENS")
@@ -44,7 +58,7 @@ class ModelConfig(BaseSettings):
     @field_validator('default_provider')
     @classmethod
     def validate_provider(cls, v):
-        valid_providers = ['openai', 'anthropic', 'local']
+        valid_providers = ['openai', 'anthropic', 'local', 'deepseek', 'qwen', 'ollama']
         if v not in valid_providers:
             raise ValueError(f'Provider must be one of {valid_providers}')
         return v
