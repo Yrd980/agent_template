@@ -83,10 +83,11 @@ class ToolDefinition(BaseModel):
     tags: List[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
     
     def to_openai_format(self) -> Dict[str, Any]:
         """Convert to OpenAI function calling format."""
@@ -178,11 +179,12 @@ class ToolCall(BaseModel):
     retry_count: int = 0
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
-    class Config:
-        use_enum_values = True
-        json_encoders = {
+    model_config = {
+        "use_enum_values": True,
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
     
     @property
     def duration(self) -> Optional[float]:
@@ -212,11 +214,12 @@ class ToolResult(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
-    class Config:
-        use_enum_values = True
-        json_encoders = {
+    model_config = {
+        "use_enum_values": True,
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
 
 
 class MCPServer(BaseModel):
@@ -254,11 +257,12 @@ class MCPServer(BaseModel):
     description: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
-    class Config:
-        use_enum_values = True
-        json_encoders = {
+    model_config = {
+        "use_enum_values": True,
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
     
     @property
     def success_rate(self) -> float:
@@ -293,10 +297,11 @@ class ToolRegistry(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
     
     def add_tool(self, tool: ToolDefinition) -> None:
         """Add a tool to the registry."""
@@ -402,10 +407,11 @@ class ToolDiscovery(BaseModel):
     discovered_tools: int = 0
     discovery_errors: List[str] = Field(default_factory=list)
     
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
 
 
 class ToolExecutionContext(BaseModel):
@@ -428,10 +434,11 @@ class ToolExecutionContext(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: Optional[datetime] = None
     
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
     
     @property
     def is_expired(self) -> bool:
@@ -469,10 +476,11 @@ class ToolMetrics(BaseModel):
     first_call: Optional[datetime] = None
     last_call: Optional[datetime] = None
     
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
     
     def record_call(
         self,

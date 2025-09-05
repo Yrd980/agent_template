@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class MessageRole(str, Enum):
@@ -72,21 +72,24 @@ class Message(BaseModel):
     compressed: bool = False
     compression_ratio: Optional[float] = None
     
-    class Config:
-        use_enum_values = True
-        json_encoders = {
+    model_config = {
+        "use_enum_values": True,
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
     
-    @validator('content')
-    def validate_content(cls, v, values):
+    @field_validator('content')
+    @classmethod
+    def validate_content(cls, v, info):
         """Validate content based on message type."""
-        message_type = values.get('message_type')
-        
-        if message_type == MessageType.TEXT and not isinstance(v, str):
-            # Allow list format for complex content
-            if not isinstance(v, (list, dict)):
-                raise ValueError("Text messages must have string, list, or dict content")
+        if info.data and 'message_type' in info.data:
+            message_type = info.data['message_type']
+            
+            if message_type == MessageType.TEXT and not isinstance(v, str):
+                # Allow list format for complex content
+                if not isinstance(v, (list, dict)):
+                    raise ValueError("Text messages must have string, list, or dict content")
         
         return v
     
@@ -149,11 +152,12 @@ class Session(BaseModel):
     tags: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
-    class Config:
-        use_enum_values = True
-        json_encoders = {
+    model_config = {
+        "use_enum_values": True,
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
     
     def is_expired(self) -> bool:
         """Check if the session is expired."""
@@ -192,10 +196,11 @@ class Context(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
     
     def add_message(self, message: Message) -> bool:
         """
@@ -277,10 +282,11 @@ class ConversationThread(BaseModel):
     # Metadata
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
 
 
 class MessageHistory(BaseModel):
@@ -306,10 +312,11 @@ class MessageHistory(BaseModel):
     # Timing
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
 
 
 class MessageFilter(BaseModel):
@@ -337,11 +344,12 @@ class MessageFilter(BaseModel):
     order_by: str = "timestamp"
     descending: bool = True
     
-    class Config:
-        use_enum_values = True
-        json_encoders = {
+    model_config = {
+        "use_enum_values": True,
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
 
 
 class MessageStats(BaseModel):
@@ -373,10 +381,11 @@ class MessageStats(BaseModel):
     first_message_at: Optional[datetime] = None
     last_message_at: Optional[datetime] = None
     
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
     
     def update_with_message(self, message: Message) -> None:
         """Update statistics with a new message."""

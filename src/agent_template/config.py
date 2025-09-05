@@ -4,7 +4,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseSettings, Field, validator
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings
 
 
 class DatabaseConfig(BaseSettings):
@@ -40,7 +41,8 @@ class ModelConfig(BaseSettings):
     temperature: float = Field(default=0.7, env="MODEL_TEMPERATURE")
     max_tokens: int = Field(default=4096, env="MODEL_MAX_TOKENS")
     
-    @validator('default_provider')
+    @field_validator('default_provider')
+    @classmethod
     def validate_provider(cls, v):
         valid_providers = ['openai', 'anthropic', 'local']
         if v not in valid_providers:
@@ -94,7 +96,8 @@ class LoggingConfig(BaseSettings):
     max_size: str = Field(default="100MB", env="LOG_MAX_SIZE")
     backup_count: int = Field(default=5, env="LOG_BACKUP_COUNT")
     
-    @validator('level')
+    @field_validator('level')
+    @classmethod
     def validate_level(cls, v):
         valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
         if v.upper() not in valid_levels:
@@ -121,10 +124,11 @@ class Settings(BaseSettings):
     data_dir: Path = Field(default=Path("./data"), env="DATA_DIR")
     log_dir: Path = Field(default=Path("./logs"), env="LOG_DIR")
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8", 
+        "case_sensitive": False
+    }
         
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

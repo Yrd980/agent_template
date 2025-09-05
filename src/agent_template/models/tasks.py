@@ -73,11 +73,12 @@ class Task(BaseModel):
     progress: float = 0.0
     progress_message: Optional[str] = None
     
-    class Config:
-        use_enum_values = True
-        json_encoders = {
+    model_config = {
+        "use_enum_values": True,
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
 
 
 class AgentState(str, Enum):
@@ -114,11 +115,12 @@ class StateSnapshot(BaseModel):
     # Additional data
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
-    class Config:
-        use_enum_values = True
-        json_encoders = {
+    model_config = {
+        "use_enum_values": True,
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
 
 
 class TaskResult(BaseModel):
@@ -148,10 +150,11 @@ class SubagentRequest(BaseModel):
     
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
 
 
 class ToolCall(BaseModel):
@@ -170,8 +173,9 @@ class ToolCall(BaseModel):
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
     
-    class Config:
-        use_enum_values = True
-        json_encoders = {
+    model_config = {
+        "use_enum_values": True,
+        "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
+    }
