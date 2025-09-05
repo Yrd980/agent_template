@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "agent-template"
@@ -60,11 +60,16 @@ agent-template = "agent_template.cli:main"
 agent-server = "agent_template.server:main"
 agent-client = "agent_template.client:main"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_template"]
 
-[tool.setuptools.package-dir]
-"" = "src"
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/README.md",
+    "/LICENSE",
+]
 
 [tool.black]
 line-length = 88

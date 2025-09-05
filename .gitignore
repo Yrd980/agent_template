@@ -32,12 +32,17 @@ dist-ssr
 *.pyc                   # Python compiled files
 **/venv/                # Ignore all levels of virtual environments
 **/env/                 # Ignore all levels of virtual environments
+**/.venv/               # uv virtual environments
 *.egg-info/             # Python package metadata
 **/out/
 **/dataset/
 **/checkpoints/
 **/tensorboard/
 **/plots/
+
+# uv specific
+uv.lock
+.python-version
 
 # Java related
 *.class                 # Java compiled class files

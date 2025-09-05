@@ -53,10 +53,33 @@ Advanced AI Agent Template with Terminal Frontend and Python Backend.
 
 ### Installation
 
+#### Using uv (Recommended)
+
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd agent_template
+
+# Automated setup (creates venv, installs deps, creates config)
+./scripts/setup.sh
+
+# Or manual setup:
+uv venv --python 3.11
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+uv pip install -e .
+uv pip install -e ".[dev]"
+```
+
+#### Using pip
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd agent_template
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -e .
@@ -141,10 +164,34 @@ agent_loop.run()
 
 ### Setup Development Environment
 
+#### Using uv and dev scripts (Recommended)
+
 ```bash
 # Install pre-commit hooks
 pre-commit install
 
+# Run tests
+./scripts/dev.sh test
+# or: uv run pytest
+
+# Run linting
+./scripts/dev.sh lint
+# or: uv run flake8 src/ tests/ && uv run mypy src/agent_template
+
+# Format code
+./scripts/dev.sh format
+# or: uv run black src/ tests/ && uv run isort src/ tests/
+
+# Install/update dependencies
+./scripts/dev.sh install
+
+# Clean up temp files
+./scripts/dev.sh clean
+```
+
+#### Traditional approach
+
+```bash
 # Run tests
 pytest
 
@@ -152,9 +199,6 @@ pytest
 black src/ tests/
 isort src/ tests/
 flake8 src/ tests/
-mypy src/
-
-# Run type checking
 mypy src/agent_template
 ```
 
