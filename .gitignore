@@ -1,0 +1,174 @@
+.env
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Python related
+**/__pycache__/         # Ignore all levels of __pycache__
+*.py[cod]               # Python compiled files
+*.pth                   # module parameter file
+*.pyc                   # Python compiled files
+**/venv/                # Ignore all levels of virtual environments
+**/env/                 # Ignore all levels of virtual environments
+*.egg-info/             # Python package metadata
+**/out/
+**/dataset/
+**/checkpoints/
+**/tensorboard/
+**/plots/
+
+# Java related
+*.class                 # Java compiled class files
+**/target/              # Ignore all levels of target (Maven/Gradle)
+**/mvn/
+*.jar                   # JAR files (if build output)
+*.war                   # WAR files
+
+# General development ignores
+*.tmp                   # Temporary files
+*.bak                   # Backup files
+*.swp                   # Vim swap files
+.DS_Store               # macOS metadata
+.idea/                  # IntelliJ IDEA project files
+.vscode/                # VS Code settings
+
+# Other
+*.md~                   # Markdown backup files
+*.zip                   # Compressed archives
+*.tar.gz                # Compressed archives
+HELP.md
+
+# Target directories
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### Spring Tool Suite (STS) ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+# Java template
+*.class
+*.log
+*.ctxt
+.mtj.tmp/
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+
+# Maven template
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# JetBrains IDEs
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+.idea/**/contentModel.xml
+.idea/**/dataSources/
+.idea/**/dataSources.ids
+.idea/**/dataSources.local.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/dbnavigator.xml
+.idea/**/gradle.xml
+.idea/**/libraries
+.idea/httpRequests
+.idea/caches/build_file_checksums.ser
+
+# Logs and debug files
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+.DS_Store
+dist
+dist-ssr
+coverage
+*.local
+
+/cypress/videos/
+/cypress/screenshots/
+
+# Editor files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*.tsbuildinfo
+application-local.yml
+application-prod.yml
+

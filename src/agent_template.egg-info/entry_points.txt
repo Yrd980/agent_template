@@ -1,0 +1,4 @@
+[console_scripts]
+agent-client = agent_template.client:main
+agent-server = agent_template.server:main
+agent-template = agent_template.cli:main
