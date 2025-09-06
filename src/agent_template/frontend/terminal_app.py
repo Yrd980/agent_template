@@ -21,7 +21,7 @@ from textual.widgets import (
     Button, Footer, Header, Input, Log, RichLog, Static, TextArea
 )
 
-from ..core.messages import Message, MessageType, Session
+from ..models.messages import Message, MessageType, MessageRole, Session
 from ..models.tasks import Task, TaskStatus, TaskType
 
 

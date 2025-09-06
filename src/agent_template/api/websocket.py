@@ -11,7 +11,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from fastapi.websockets import WebSocketState
 
 from ..core.agent_loop import AgentLoop
-from ..core.messages import Message, MessageType, Session
+from ..models.messages import Message, MessageType, MessageRole, Session
 from ..core.stream_gen import StreamGenerator
 from ..models.tasks import Task, TaskStatus
 from ..services.session_manager import SessionManager

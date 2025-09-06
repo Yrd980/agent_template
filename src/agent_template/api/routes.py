@@ -9,12 +9,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from ..core.agent_loop import AgentLoop
-from ..core.messages import Message, MessageType
+from ..models.messages import Message, MessageType, MessageRole
 from ..core.stream_gen import StreamGenerator
 from ..models.tasks import Task, TaskStatus, TaskType
 from ..services.session_manager import SessionManager
 from ..services.tool_manager import ToolManager
-from ..utils.state_cache import StateCache
+from ..services.state_cache import StateCache
 
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class MessageRequest(BaseModel):
     content: str
     session_id: Optional[str] = None
-    message_type: MessageType = MessageType.USER
+    role: MessageRole = MessageRole.USER
     metadata: Dict[str, Any] = {}
 
 

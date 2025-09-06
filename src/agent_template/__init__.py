@@ -17,7 +17,7 @@ __email__ = "agent@template.com"
 
 from .core.agent_loop import AgentLoop
 from .core.async_queue import AsyncQueue
-from .core.stream_gen import StreamGen
+from .core.stream_gen import StreamGenerator
 from .models.messages import Message, Session, Context
 from .services.compressor import MessageCompressor
 from .services.state_cache import StateCache
@@ -25,7 +25,7 @@ from .services.state_cache import StateCache
 __all__ = [
     "AgentLoop",
     "AsyncQueue", 
-    "StreamGen",
+    "StreamGenerator",
     "Message",
     "Session",
     "Context",

@@ -181,6 +181,10 @@ class AgentLoop:
             self._event_handlers[event] = []
         self._event_handlers[event].append(handler)
     
+    def add_event_handler(self, event: str, handler: Callable) -> None:
+        """Alias for on() method for compatibility."""
+        self.on(event, handler)
+    
     async def emit(self, event: str, data: Any = None) -> None:
         """Emit an event to all registered handlers."""
         if event in self._event_handlers:

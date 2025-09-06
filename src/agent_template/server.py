@@ -4,11 +4,10 @@ import asyncio
 import logging
 import signal
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from .api.routes import APIDependencies, router as api_router, set_dependencies
 from .api.websocket import WebSocketManager
@@ -19,7 +18,7 @@ from .services.model_provider import ModelManager
 from .services.session_manager import SessionManager
 from .services.tool_manager import ToolManager
 from .utils.logging_setup import setup_logging
-from .utils.state_cache import StateCache
+from .services.state_cache import StateCache
 
 
 logger = logging.getLogger(__name__)
@@ -47,27 +46,16 @@ class AgentServer:
         
         # Initialize core components
         self.state_cache = StateCache()
-        await self.state_cache.initialize()
         
         self.async_queue = AsyncQueue()
         
         self.session_manager = SessionManager(state_cache=self.state_cache)
-        await self.session_manager.initialize()
         
         self.model_manager = ModelManager()
-        await self.model_manager.initialize()
         
-        self.tool_manager = ToolManager(state_cache=self.state_cache)
-        await self.tool_manager.initialize()
+        self.tool_manager = ToolManager()
         
-        self.agent_loop = AgentLoop(
-            session_manager=self.session_manager,
-            model_manager=self.model_manager,
-            tool_manager=self.tool_manager,
-            state_cache=self.state_cache,
-            async_queue=self.async_queue
-        )
-        await self.agent_loop.initialize()
+        self.agent_loop = AgentLoop()
         
         # Initialize WebSocket manager
         self.websocket_manager = WebSocketManager(

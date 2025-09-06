@@ -5,59 +5,61 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class DatabaseConfig(BaseSettings):
     """Database configuration."""
+    model_config = SettingsConfigDict(env_prefix='DATABASE_')
     
-    url: str = Field(default="sqlite:///./agent_template.db", env="DATABASE_URL")
-    echo: bool = Field(default=False, env="DATABASE_ECHO")
-    pool_size: int = Field(default=5, env="DATABASE_POOL_SIZE")
-    max_overflow: int = Field(default=10, env="DATABASE_MAX_OVERFLOW")
+    url: str = "sqlite:///./agent_template.db"
+    echo: bool = False
+    pool_size: int = 5
+    max_overflow: int = 10
 
 
 class RedisConfig(BaseSettings):
     """Redis configuration."""
+    model_config = SettingsConfigDict(env_prefix='REDIS_')
     
-    url: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
-    max_connections: int = Field(default=10, env="REDIS_MAX_CONNECTIONS")
+    url: str = "redis://localhost:6379/0"
+    max_connections: int = 10
 
 
 class ModelConfig(BaseSettings):
     """AI model configuration."""
     
-    default_provider: str = Field(default="openai", env="DEFAULT_MODEL_PROVIDER")
-    openai_api_key: Optional[str] = Field(default=None, env="OPENAI_API_KEY")
-    openai_model: str = Field(default="gpt-4-turbo-preview", env="OPENAI_MODEL")
-    anthropic_api_key: Optional[str] = Field(default=None, env="ANTHROPIC_API_KEY")
-    anthropic_model: str = Field(default="claude-3-sonnet-20240229", env="ANTHROPIC_MODEL")
+    default_provider: str = "openai"
+    openai_api_key: Optional[str] = None
+    openai_model: str = "gpt-4-turbo-preview"
+    anthropic_api_key: Optional[str] = None
+    anthropic_model: str = "claude-3-sonnet-20240229"
     
     # Local model settings
-    local_model_url: Optional[str] = Field(default=None, env="LOCAL_MODEL_URL")
-    local_model_name: Optional[str] = Field(default=None, env="LOCAL_MODEL_NAME")
+    local_model_url: Optional[str] = None
+    local_model_name: Optional[str] = None
     
     # DeepSeek settings
-    deepseek_api_key: Optional[str] = Field(default=None, env="DEEPSEEK_API_KEY")
-    deepseek_model: str = Field(default="deepseek-chat", env="DEEPSEEK_MODEL")
-    deepseek_base_url: str = Field(default="https://api.deepseek.com", env="DEEPSEEK_BASE_URL")
+    deepseek_api_key: Optional[str] = None
+    deepseek_model: str = "deepseek-chat"
+    deepseek_base_url: str = "https://api.deepseek.com"
     
     # Qwen settings  
-    qwen_api_key: Optional[str] = Field(default=None, env="QWEN_API_KEY")
-    qwen_model: str = Field(default="qwen-turbo", env="QWEN_MODEL")
-    qwen_base_url: str = Field(default="https://dashscope.aliyuncs.com/compatible-mode/v1", env="QWEN_BASE_URL")
+    qwen_api_key: Optional[str] = None
+    qwen_model: str = "qwen-turbo"
+    qwen_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     
     # Ollama settings
-    ollama_base_url: str = Field(default="http://localhost:11434", env="OLLAMA_BASE_URL")
-    ollama_model: str = Field(default="llama3.1", env="OLLAMA_MODEL")
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.1"
     
     # Model parameters
-    temperature: float = Field(default=0.7, env="MODEL_TEMPERATURE")
-    max_tokens: int = Field(default=4096, env="MODEL_MAX_TOKENS")
+    temperature: float = 0.7
+    max_tokens: int = 4096
     
     @field_validator('default_provider')
     @classmethod
-    def validate_provider(cls, v):
+    def validate_provider(cls, v: str) -> str:
         valid_providers = ['openai', 'anthropic', 'local', 'deepseek', 'qwen', 'ollama']
         if v not in valid_providers:
             raise ValueError(f'Provider must be one of {valid_providers}')
@@ -66,53 +68,55 @@ class ModelConfig(BaseSettings):
 
 class ServerConfig(BaseSettings):
     """Server configuration."""
+    model_config = SettingsConfigDict(env_prefix='SERVER_')
     
-    host: str = Field(default="127.0.0.1", env="SERVER_HOST")
-    port: int = Field(default=8000, env="SERVER_PORT")
-    reload: bool = Field(default=False, env="SERVER_RELOAD")
-    workers: int = Field(default=1, env="SERVER_WORKERS")
+    host: str = "127.0.0.1"
+    port: int = 8000
+    reload: bool = False
+    workers: int = 1
     
     # WebSocket settings
-    websocket_ping_interval: int = Field(default=20, env="WS_PING_INTERVAL")
-    websocket_ping_timeout: int = Field(default=10, env="WS_PING_TIMEOUT")
+    websocket_ping_interval: int = 20
+    websocket_ping_timeout: int = 10
 
 
 class AgentConfig(BaseSettings):
     """Agent-specific configuration."""
     
     # Task processing
-    max_concurrent_tasks: int = Field(default=10, env="MAX_CONCURRENT_TASKS")
-    task_timeout: int = Field(default=300, env="TASK_TIMEOUT")  # seconds
+    max_concurrent_tasks: int = 10
+    task_timeout: int = 300  # seconds
     
     # Message handling
-    max_context_length: int = Field(default=8000, env="MAX_CONTEXT_LENGTH")
-    context_compression_threshold: float = Field(default=0.8, env="CONTEXT_COMPRESSION_THRESHOLD")
+    max_context_length: int = 8000
+    context_compression_threshold: float = 0.8
     
     # Stream settings
-    stream_chunk_size: int = Field(default=1024, env="STREAM_CHUNK_SIZE")
-    stream_timeout: int = Field(default=30, env="STREAM_TIMEOUT")
+    stream_chunk_size: int = 1024
+    stream_timeout: int = 30
     
     # Subagent settings
-    max_subagents: int = Field(default=5, env="MAX_SUBAGENTS")
-    subagent_timeout: int = Field(default=600, env="SUBAGENT_TIMEOUT")
+    max_subagents: int = 5
+    subagent_timeout: int = 600
     
     # Tool settings
-    enable_tool_discovery: bool = Field(default=True, env="ENABLE_TOOL_DISCOVERY")
-    tool_timeout: int = Field(default=60, env="TOOL_TIMEOUT")
+    enable_tool_discovery: bool = True
+    tool_timeout: int = 60
 
 
 class LoggingConfig(BaseSettings):
     """Logging configuration."""
+    model_config = SettingsConfigDict(env_prefix='LOG_')
     
-    level: str = Field(default="INFO", env="LOG_LEVEL")
-    format: str = Field(default="json", env="LOG_FORMAT")  # json or text
-    file: Optional[str] = Field(default=None, env="LOG_FILE")
-    max_size: str = Field(default="100MB", env="LOG_MAX_SIZE")
-    backup_count: int = Field(default=5, env="LOG_BACKUP_COUNT")
+    level: str = "INFO"
+    format: str = "json"  # json or text
+    file: Optional[str] = None
+    max_size: str = "100MB"
+    backup_count: int = 5
     
     @field_validator('level')
     @classmethod
-    def validate_level(cls, v):
+    def validate_level(cls, v: str) -> str:
         valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
         if v.upper() not in valid_levels:
             raise ValueError(f'Log level must be one of {valid_levels}')
@@ -121,30 +125,30 @@ class LoggingConfig(BaseSettings):
 
 class Settings(BaseSettings):
     """Main settings container."""
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore"
+    )
     
     # Environment
-    env: str = Field(default="development", env="ENVIRONMENT")
-    debug: bool = Field(default=False, env="DEBUG")
+    env: str = "development"
+    debug: bool = False
     
     # Sub-configurations
-    database: DatabaseConfig = DatabaseConfig()
-    redis: RedisConfig = RedisConfig()
-    models: ModelConfig = ModelConfig()
-    server: ServerConfig = ServerConfig()
-    agent: AgentConfig = AgentConfig()
-    logging: LoggingConfig = LoggingConfig()
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    redis: RedisConfig = Field(default_factory=RedisConfig)
+    models: ModelConfig = Field(default_factory=ModelConfig)
+    server: ServerConfig = Field(default_factory=ServerConfig)
+    agent: AgentConfig = Field(default_factory=AgentConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
     
     # Paths
-    data_dir: Path = Field(default=Path("./data"), env="DATA_DIR")
-    log_dir: Path = Field(default=Path("./logs"), env="LOG_DIR")
-    
-    model_config = {
-        "env_file": ".env",
-        "env_file_encoding": "utf-8", 
-        "case_sensitive": False
-    }
+    data_dir: Path = Path("./data")
+    log_dir: Path = Path("./logs")
         
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
         # Ensure directories exist
         self.data_dir.mkdir(exist_ok=True)
