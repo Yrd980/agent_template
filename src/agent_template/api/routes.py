@@ -24,6 +24,7 @@ class MessageRequest(BaseModel):
     content: str
     session_id: Optional[str] = None
     role: MessageRole = MessageRole.USER
+    message_type: MessageType = MessageType.TEXT
     metadata: Dict[str, Any] = {}
 
 
@@ -63,6 +64,13 @@ class TaskResponse(BaseModel):
     progress: float
     created_at: datetime
     session_id: Optional[str] = None
+
+    model_config = {
+        "use_enum_values": True,
+        "json_encoders": {
+            datetime: lambda v: v.isoformat(),
+        }
+    }
 
 
 class ToolCallRequest(BaseModel):
@@ -166,7 +174,7 @@ async def create_session(
 ):
     """Create a new session."""
     try:
-        session = await deps.session_manager.create_session(metadata=request.metadata)
+        session = await deps.session_manager.create_session(session_metadata=request.metadata)
         
         return SessionResponse(
             id=session.id,
