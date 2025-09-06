@@ -719,19 +719,20 @@ class DeepSeekProvider(ModelProvider):
         """Initialize DeepSeek client."""
         if not self.api_key:
             raise ValueError("DeepSeek API key not configured")
-        
+
         try:
             import openai
             self.client = openai.AsyncOpenAI(
                 api_key=self.api_key,
-                base_url=f"{self.base_url}/v1"
+                base_url=self.base_url
             )
-            
+
             await self._load_models()
             logger.info("DeepSeek provider initialized")
-            
-        except ImportError:
-            raise RuntimeError("openai package not installed. Run: pip install openai")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize DeepSeek client: {e}")
+            raise RuntimeError(f"DeepSeek initialization failed: {e}")
     
     async def chat_completion(
         self, 
@@ -805,14 +806,16 @@ class DeepSeekProvider(ModelProvider):
     def _convert_messages(self, messages: List[Message]) -> List[Dict[str, Any]]:
         """Convert internal messages to OpenAI format."""
         openai_messages = []
-        
+
         for message in messages:
+            # Handle both enum and string roles
+            role = message.role.value if hasattr(message.role, 'value') else message.role
             openai_msg = {
-                "role": message.role.value,
+                "role": role,
                 "content": message.get_text_content()
             }
             openai_messages.append(openai_msg)
-        
+
         return openai_messages
     
     async def _load_models(self) -> None:

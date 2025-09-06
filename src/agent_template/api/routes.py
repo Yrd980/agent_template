@@ -285,22 +285,28 @@ async def send_message(
     deps: APIDependencies = Depends(get_dependencies)
 ):
     """Send a message to the agent."""
+    logger.info(f"send_message called with content: {request.content[:50]}...")
     try:
         # Create session if not provided
         if not request.session_id:
+            logger.info("Creating new session")
             session = await deps.session_manager.create_session()
             session_id = session.id
+            logger.info(f"New session created: {session_id}")
         else:
             session_id = request.session_id
+            logger.info(f"Using existing session: {session_id}")
             # Verify session exists
             session = await deps.session_manager.get_session(session_id)
             if not session:
+                logger.error(f"Session {session_id} not found")
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Session {session_id} not found"
                 )
-        
+
         # Create message
+        logger.info("Creating message object")
         message = Message(
             role=MessageRole.USER,
             message_type=request.message_type,
@@ -308,22 +314,100 @@ async def send_message(
             session_id=session_id,
             metadata=request.metadata
         )
-        
+        logger.info(f"Message created: {message.id}")
+
         # Add to session
+        logger.info("Adding message to session")
         await deps.session_manager.add_message(session_id, message)
-        
-        # Process with agent loop
-        await deps.agent_loop.process_message(message)
-        
+
+        # Process message with model
+        logger.info("Processing message with model")
+        from ..services.model_provider import model_manager, ProviderType
+
+        # Get context messages
+        context = await deps.session_manager.get_context(session_id)
+        context_messages = []
+        if context:
+            # Convert conversation history to Message objects
+            for item in context.conversation_history:
+                msg = Message(
+                    role=MessageRole.USER if item.get("role") == "user" else MessageRole.ASSISTANT,
+                    message_type=MessageType.TEXT,
+                    content=item.get("content", ""),
+                    session_id=session_id,
+                    metadata=item.get("metadata", {})
+                )
+                context_messages.append(msg)
+        logger.info(f"Retrieved {len(context_messages)} context messages")
+
+        # Prepare messages for model
+        from ..services.model_provider import ModelRequest
+        model_request = ModelRequest(
+            messages=context_messages + [message],
+            model="deepseek-chat",  # Use DeepSeek as configured
+            temperature=0.7
+        )
+
+        # Debug: Check settings and providers
+        from ..config import settings
+        logger.info(f"DeepSeek API key configured: {bool(settings.models.deepseek_api_key)}")
+        logger.info(f"Default provider from settings: {settings.models.default_provider}")
+        logger.info(f"Available providers: {model_manager.available_providers}")
+        logger.info(f"Default provider: {model_manager.default_provider}")
+
+        # Manually initialize DeepSeek if not available
+        if ProviderType.DEEPSEEK not in model_manager.available_providers:
+            logger.info("Manually initializing DeepSeek provider")
+            from ..services.model_provider import DeepSeekProvider
+            from ..config import settings
+            try:
+                deepseek_provider = DeepSeekProvider()
+                await deepseek_provider.initialize()
+                model_manager._providers[ProviderType.DEEPSEEK] = deepseek_provider
+                logger.info("DeepSeek provider initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize DeepSeek provider: {e}")
+
+        # Debug: Check model validation
+        deepseek_provider = model_manager._providers.get(ProviderType.DEEPSEEK)
+        if deepseek_provider:
+            is_valid = await deepseek_provider.validate_request(model_request)
+            logger.info(f"Model request validation: {is_valid}")
+            if not is_valid:
+                model_info = await deepseek_provider.get_model_info(model_request.model)
+                logger.info(f"Model info: {model_info}")
+                total_tokens = sum(msg.estimate_tokens() for msg in model_request.messages)
+                logger.info(f"Total tokens: {total_tokens}, Context window: {model_info.context_window if model_info else 'N/A'}")
+
+        # Generate response
+        try:
+            response = await model_manager.chat_completion(model_request, provider=ProviderType.DEEPSEEK)
+            logger.info(f"Response generated from model: {type(response)}")
+        except Exception as e:
+            logger.error(f"Error in chat completion: {e}")
+            raise
+
+        # Create response message
+        response_message = Message(
+            role=MessageRole.ASSISTANT,
+            message_type=MessageType.TEXT,
+            content=response.content if hasattr(response, 'content') else str(response),
+            session_id=session_id
+        )
+
+        # Add response to session
+        await deps.session_manager.add_message(session_id, response_message)
+        logger.info("Response message added to session")
+
         return MessageResponse(
             id=message.id,
-            type=message.type,
-            content=message.content,
+            type=message.message_type,
+            content=response_message.content,
             session_id=message.session_id,
             timestamp=message.timestamp,
             metadata=message.metadata
         )
-    
+
     except HTTPException:
         raise
     except Exception as e:

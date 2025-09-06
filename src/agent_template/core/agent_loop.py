@@ -18,9 +18,10 @@ import structlog
 
 from ..config import settings
 from ..models.tasks import (
-    Task, TaskStatus, TaskPriority, TaskType, TaskResult, 
+    Task, TaskStatus, TaskPriority, TaskType, TaskResult,
     AgentState, StateSnapshot
 )
+from ..models.messages import Message, MessageRole, MessageType
 
 
 logger = structlog.get_logger(__name__)

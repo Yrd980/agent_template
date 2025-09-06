@@ -163,9 +163,9 @@ class SessionManager:
         async with self._session_locks[session_id]:
             session.messages.append(message)
             session.context.conversation_history.append({
-                "role": message.message_type.value,
+                "role": message.message_type,
                 "content": message.content,
-                "timestamp": message.created_at.isoformat(),
+                "timestamp": message.timestamp.isoformat(),
                 "metadata": message.metadata
             })
             

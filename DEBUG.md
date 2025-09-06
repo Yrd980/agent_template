@@ -1,9 +1,13 @@
 prompt
 
 @CLAUDE.md @./scripts/dev.sh
+
+./scripts/dev.sh server
+
 my system is arch linux
 i have config deepseek api in .env and config proxy in my computer
-use NO_PROXY=127.0.0.1,localhost curl -s <http://127.0.0.1:8000/health>
+
+NO_PROXY=127.0.0.1,localhost curl -X POST http://127.0.0.1:8000/api/v1/messages -H "Content-Type: application/json" -d '{"content": "Hello, this is a test message to verify DeepSeek connection"}'
 
 use vscode debug
 

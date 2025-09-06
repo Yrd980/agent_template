@@ -28,10 +28,12 @@ class RedisConfig(BaseSettings):
 
 class ModelConfig(BaseSettings):
     """AI model configuration."""
+    model_config = SettingsConfigDict(env_prefix='')
     
     default_provider: str = "openai"
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4-turbo-preview"
+
     anthropic_api_key: Optional[str] = None
     anthropic_model: str = "claude-3-sonnet-20240229"
     
