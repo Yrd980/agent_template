@@ -42,7 +42,7 @@ class ModelConfig(BaseSettings):
     # DeepSeek settings
     deepseek_api_key: Optional[str] = None
     deepseek_model: str = "deepseek-chat"
-    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_base_url: str = "https://api.deepseek.com/v1"
     
     # Qwen settings  
     qwen_api_key: Optional[str] = None
