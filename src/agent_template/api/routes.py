@@ -66,7 +66,6 @@ class TaskResponse(BaseModel):
     session_id: Optional[str] = None
 
     model_config = {
-        "use_enum_values": True,
         "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
@@ -131,7 +130,7 @@ router = APIRouter(prefix="/api/v1", tags=["Agent API"])
 @router.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "timestamp": datetime.utcnow()}
+    return {"status": "healthy", "timestamp": datetime.now()}
 
 
 @router.get("/stats", response_model=StatsResponse)

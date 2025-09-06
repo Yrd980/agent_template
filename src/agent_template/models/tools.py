@@ -196,7 +196,6 @@ class ToolCall(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
     model_config = {
-        "use_enum_values": True,
         "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
@@ -231,7 +230,6 @@ class ToolResult(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
     model_config = {
-        "use_enum_values": True,
         "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
@@ -274,7 +272,6 @@ class MCPServer(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
     model_config = {
-        "use_enum_values": True,
         "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }

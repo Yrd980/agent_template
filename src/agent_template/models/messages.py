@@ -80,7 +80,6 @@ class Message(BaseModel):
     compression_ratio: Optional[float] = None
     
     model_config = {
-        "use_enum_values": True,
         "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
@@ -165,7 +164,6 @@ class Session(BaseModel):
     context: Optional["Context"] = None
     
     model_config = {
-        "use_enum_values": True,
         "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
@@ -362,7 +360,6 @@ class MessageFilter(BaseModel):
     descending: bool = True
     
     model_config = {
-        "use_enum_values": True,
         "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
