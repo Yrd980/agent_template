@@ -924,6 +924,22 @@ class StateCache:
         
         return stats
     
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get statistics (alias for get_cache_stats for API compatibility)."""
+        return await self.get_cache_stats()
+    
+    async def clear(self) -> None:
+        """Clear all cache entries."""
+        if hasattr(self.storage, 'clear'):
+            await self.storage.clear()
+        
+        # Clear internal state
+        self._execution_history.clear()
+        self._active_executions.clear()
+        self._state_snapshots.clear()
+        
+        logger.info("Cache cleared")
+    
     # Context managers
     @asynccontextmanager
     async def execution_context(

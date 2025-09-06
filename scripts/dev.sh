@@ -37,13 +37,23 @@ if [ -z "$VIRTUAL_ENV" ]; then
     source .venv/bin/activate
 fi
 
+# Load environment variables from .env file if it exists
+load_env() {
+    if [ -f ".env" ]; then
+        echo "Loading environment variables from .env file..."
+        # Export variables from .env, ignoring comments and empty lines
+        export $(grep -v '^#\|^$' .env | xargs)
+    fi
+}
+
 case "$1" in
     setup)
         ./scripts/setup.sh
         ;;
     server)
         echo "Starting agent server..."
-        NO_PROXY=127.0.0.1,localhost uv run agent-server "${@:2}"
+        load_env
+        NO_PROXY=127.0.0.1,localhost,api.deepseek.com uv run agent-server "${@:2}"
         ;;
     client)
         echo "Starting terminal client..."

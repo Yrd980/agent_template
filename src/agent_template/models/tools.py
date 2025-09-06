@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union, Callable
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class ToolType(str, Enum):

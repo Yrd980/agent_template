@@ -134,8 +134,9 @@ class TaskResult(BaseModel):
     tokens_used: Optional[int] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
-    class Config:
-        use_enum_values = True
+    model_config = {
+        "use_enum_values": True
+    }
 
 
 class SubagentRequest(BaseModel):

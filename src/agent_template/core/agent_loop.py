@@ -10,7 +10,7 @@ import logging
 import signal
 import sys
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Callable, AsyncGenerator
 from weakref import WeakSet
 
@@ -454,6 +454,21 @@ class AgentLoop:
             "sessions": len(self._sessions)
         }
     
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get agent statistics (async method for API compatibility)."""
+        return {
+            "active_tasks": len(self.scheduler._running_tasks),
+            "pending_tasks": len(self.scheduler._pending_tasks),
+            "completed_tasks": len(self.scheduler._completed_tasks),
+            "total_tasks": self._task_count,
+            "error_count": self._error_count,
+            "uptime": (
+                datetime.utcnow() - self._start_time
+            ).total_seconds() if self._start_time else 0,
+            "state": self.state.value if hasattr(self.state, 'value') else str(self.state),
+            "running": self.running
+        }
+    
     @asynccontextmanager
     async def session(self, session_id: str) -> AsyncGenerator[None, None]:
         """Context manager for session tracking."""
@@ -468,3 +483,20 @@ class AgentLoop:
         finally:
             # WeakSet will automatically clean up when tracker goes out of scope
             pass
+    
+    async def process_message(self, message: Message) -> None:
+        """Process a message by creating and scheduling a message processing task."""
+        task_data = {
+            "id": f"message_processing_{message.id}",
+            "type": TaskType.CHAT,
+            "priority": TaskPriority.NORMAL,
+            "content": {
+                "message": message,
+                "session_id": message.session_id,
+                "message_id": message.id
+            },
+            "timeout": settings.agent.task_timeout
+        }
+        
+        task = await self.create_task(task_data)
+        logger.info("Created message processing task", task_id=task.id, message_id=message.id)

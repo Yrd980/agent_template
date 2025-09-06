@@ -518,13 +518,14 @@ async def create_task(
 ):
     """Create a new task."""
     try:
-        task = await deps.agent_loop.create_task(
-            task_type=request.type,
-            content=request.content,
-            session_id=request.session_id,
-            priority=request.priority,
-            timeout=request.timeout
-        )
+        from ..models.tasks import TaskPriority
+        task = await deps.agent_loop.create_task({
+            "type": request.type,
+            "content": request.content,
+            "session_id": request.session_id,
+            "priority": TaskPriority(request.priority),
+            "timeout": request.timeout
+        })
         
         return TaskResponse(
             id=task.id,
