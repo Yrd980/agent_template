@@ -292,7 +292,7 @@ class SessionManager:
         
         message_counts = {}
         for message in session.messages:
-            msg_type = message.message_type.value
+            msg_type = message.message_type
             message_counts[msg_type] = message_counts.get(msg_type, 0) + 1
         
         return {

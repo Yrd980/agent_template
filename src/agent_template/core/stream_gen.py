@@ -322,7 +322,7 @@ class StreamGenerator:
         except Exception as e:
             stream.status = StreamStatus.ERROR
             self._metrics["streams_failed"] += 1
-            logger.error(f"Error processing stream '{stream_id}'", error=str(e))
+            logger.error(f"Error processing stream '{stream_id}'", exception=str(e))
             raise
     
     async def stream_to_websocket(
@@ -371,6 +371,23 @@ class StreamGenerator:
             if connection_id in self._active_connections:
                 del self._active_connections[connection_id]
     
+    async def start_stream(self, stream_id: str, stream_type: StreamType = StreamType.TOKEN) -> "Stream":
+        """Start a new stream for the given stream_id."""
+        try:
+            # Create stream if it doesn't exist
+            if stream_id not in self._streams:
+                stream = await self.create_stream(stream_id, stream_type)
+                logger.info(f"Started new stream '{stream_id}' of type {stream_type}")
+                return stream
+            else:
+                # Return existing stream
+                stream = self._streams[stream_id]
+                logger.info(f"Using existing stream '{stream_id}'")
+                return stream
+        except Exception as e:
+            logger.error(f"Error starting stream '{stream_id}'", exception=str(e))
+            raise
+
     async def broadcast_to_connections(self, message: Dict[str, Any]) -> None:
         """Broadcast a message to all active WebSocket connections."""
         if not self._active_connections:

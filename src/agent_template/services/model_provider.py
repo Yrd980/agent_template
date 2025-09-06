@@ -278,7 +278,7 @@ class OpenAIProvider(ModelProvider):
         
         for message in messages:
             openai_msg = {
-                "role": message.role.value,
+                "role": message.role,
                 "content": message.get_text_content()
             }
             
@@ -953,7 +953,7 @@ class QwenProvider(ModelProvider):
         
         for message in messages:
             openai_msg = {
-                "role": message.role.value,
+                "role": message.role,
                 "content": message.get_text_content()
             }
             openai_messages.append(openai_msg)
@@ -1123,7 +1123,7 @@ class OllamaProvider(ModelProvider):
         
         for message in messages:
             ollama_msg = {
-                "role": message.role.value,
+                "role": message.role,
                 "content": message.get_text_content()
             }
             ollama_messages.append(ollama_msg)

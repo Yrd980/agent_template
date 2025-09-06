@@ -9,9 +9,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from ..core.agent_loop import AgentLoop
-from ..models.messages import Message, MessageType, MessageRole
+from ..models.messages import Message, MessageType, MessageRole, MessageRoleType, MessageTypeType
 from ..core.stream_gen import StreamGenerator
-from ..models.tasks import Task, TaskStatus, TaskType
+from ..models.tasks import Task, TaskStatus, TaskType, TaskStatusType, TaskTypeType
 from ..services.session_manager import SessionManager
 from ..services.tool_manager import ToolManager
 from ..services.state_cache import StateCache
@@ -23,14 +23,14 @@ logger = logging.getLogger(__name__)
 class MessageRequest(BaseModel):
     content: str
     session_id: Optional[str] = None
-    role: MessageRole = MessageRole.USER
-    message_type: MessageType = MessageType.TEXT
+    role: MessageRoleType = MessageRole.USER
+    message_type: MessageTypeType = MessageType.TEXT
     metadata: Dict[str, Any] = {}
 
 
 class MessageResponse(BaseModel):
     id: str
-    type: MessageType
+    type: MessageTypeType
     content: str
     session_id: str
     timestamp: datetime
@@ -50,7 +50,7 @@ class SessionResponse(BaseModel):
 
 
 class TaskRequest(BaseModel):
-    type: TaskType
+    type: TaskTypeType
     content: Dict[str, Any]
     session_id: Optional[str] = None
     priority: int = 2
@@ -59,8 +59,8 @@ class TaskRequest(BaseModel):
 
 class TaskResponse(BaseModel):
     id: str
-    type: TaskType
-    status: TaskStatus
+    type: TaskTypeType
+    status: TaskStatusType
     progress: float
     created_at: datetime
     session_id: Optional[str] = None
@@ -547,7 +547,7 @@ async def create_task(
 @router.get("/tasks", response_model=List[TaskResponse])
 async def list_tasks(
     session_id: Optional[str] = Query(None),
-    status: Optional[TaskStatus] = Query(None),
+    status: Optional[TaskStatusType] = Query(None),
     limit: int = Query(50, ge=1, le=100),
     deps: APIDependencies = Depends(get_dependencies)
 ):

@@ -49,7 +49,7 @@ class TaskScheduler:
             
             # Sort by priority
             self._pending_tasks.sort(
-                key=lambda t: (t.priority.value, t.created_at), 
+                key=lambda t: (t.priority, t.created_at), 
                 reverse=True
             )
             
@@ -262,7 +262,7 @@ class AgentLoop:
             await self._shutdown_event.wait()
             
         except Exception as e:
-            logger.error("Error in agent loop", error=str(e))
+            logger.error("Error in agent loop", exception=str(e))
             self.state = AgentState.ERROR
             self._error_count += 1
             await self.emit("agent_error", str(e))
@@ -306,7 +306,7 @@ class AgentLoop:
                     self.state = AgentState.RUNNING
                 
             except Exception as e:
-                logger.error("Error in main loop", error=str(e))
+                logger.error("Error in main loop", exception=str(e))
                 self._error_count += 1
                 await asyncio.sleep(1)  # Prevent tight error loops
     
@@ -362,7 +362,7 @@ class AgentLoop:
         # This would be implemented by specific task handlers
         # For now, just emit an event for external handlers
         result = {}
-        await self.emit(f"execute_{task.type.value}", {"task": task, "result": result})
+        await self.emit(f"execute_{task.type}", {"task": task, "result": result})
         return result
     
     async def _state_monitor(self) -> None:
@@ -393,7 +393,7 @@ class AgentLoop:
                 await asyncio.sleep(5)  # Update every 5 seconds
                 
             except Exception as e:
-                logger.error("Error in state monitor", error=str(e))
+                logger.error("Error in state monitor", exception=str(e))
                 await asyncio.sleep(5)
     
     async def _health_checker(self) -> None:
@@ -413,7 +413,7 @@ class AgentLoop:
                 await asyncio.sleep(30)  # Health check every 30 seconds
                 
             except Exception as e:
-                logger.error("Error in health checker", error=str(e))
+                logger.error("Error in health checker", exception=str(e))
                 await asyncio.sleep(30)
     
     async def _cleanup(self) -> None:

@@ -6,11 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from rich.console import Console
-from rich.layout import Layout
-from rich.live import Live
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 from textual import on
@@ -18,11 +14,11 @@ from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import (
-    Button, Footer, Header, Input, Log, RichLog, Static, TextArea
+    Button, Footer, Header, Input, RichLog, Static
 )
 
-from ..models.messages import Message, MessageType, MessageRole, Session
-from ..models.tasks import Task, TaskStatus, TaskType
+from ..models.messages import Message, MessageType, MessageRole
+from ..models.tasks import Task, TaskStatus
 
 
 class TaskTable(Static):

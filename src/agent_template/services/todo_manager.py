@@ -11,7 +11,6 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
 from typing import Any, Dict, List, Optional, Set, Union, Callable
 
 import structlog
@@ -23,7 +22,7 @@ from ..core.async_queue import AsyncQueue
 logger = structlog.get_logger(__name__)
 
 
-class TodoStatus(str, Enum):
+class TodoStatus:
     """Todo item status."""
     
     PENDING = "pending"
@@ -32,9 +31,13 @@ class TodoStatus(str, Enum):
     CANCELLED = "cancelled"
     BLOCKED = "blocked"
     DEFERRED = "deferred"
+    
+    @classmethod
+    def all_values(cls):
+        return [cls.PENDING, cls.IN_PROGRESS, cls.COMPLETED, cls.CANCELLED, cls.BLOCKED, cls.DEFERRED]
 
 
-class TodoPriority(int, Enum):
+class TodoPriority:
     """Todo priority levels."""
     
     LOW = 1
@@ -42,9 +45,13 @@ class TodoPriority(int, Enum):
     HIGH = 3
     URGENT = 4
     CRITICAL = 5
+    
+    @classmethod
+    def all_values(cls):
+        return [cls.LOW, cls.NORMAL, cls.HIGH, cls.URGENT, cls.CRITICAL]
 
 
-class TodoCategory(str, Enum):
+class TodoCategory:
     """Todo categories for organization."""
     
     GENERAL = "general"
@@ -56,6 +63,10 @@ class TodoCategory(str, Enum):
     BUG_FIX = "bug_fix"
     FEATURE = "feature"
     MAINTENANCE = "maintenance"
+    
+    @classmethod
+    def all_values(cls):
+        return [cls.GENERAL, cls.RESEARCH, cls.DEVELOPMENT, cls.TESTING, cls.DOCUMENTATION, cls.REVIEW, cls.BUG_FIX, cls.FEATURE, cls.MAINTENANCE]
 
 
 @dataclass
@@ -200,9 +211,9 @@ class TodoItem:
             "id": self.id,
             "title": self.title,
             "description": self.description,
-            "status": self.status.value,
-            "priority": self.priority.value,
-            "category": self.category.value,
+            "status": self.status,
+            "priority": self.priority,
+            "category": self.category,
             "parent_id": self.parent_id,
             "dependencies": self.dependencies,
             "subtasks": self.subtasks,
@@ -341,7 +352,7 @@ class TodoList:
         
         if priority_order:
             # Sort by priority (highest first), then by creation date
-            available.sort(key=lambda x: (-x.priority.value, x.created_at))
+            available.sort(key=lambda x: (-x.priority, x.created_at))
         else:
             # Sort by creation date only
             available.sort(key=lambda x: x.created_at)
@@ -379,16 +390,16 @@ class TodoList:
     def stats(self) -> Dict[str, Any]:
         """Get statistics for the todo list."""
         status_counts = {}
-        for status in TodoStatus:
-            status_counts[status.value] = len(self.get_items_by_status(status))
+        for status in TodoStatus.all_values():
+            status_counts[status] = len(self.get_items_by_status(status))
         
         priority_counts = {}
-        for priority in TodoPriority:
-            priority_counts[priority.value] = len(self.get_items_by_priority(priority))
+        for priority in TodoPriority.all_values():
+            priority_counts[priority] = len(self.get_items_by_priority(priority))
         
         category_counts = {}
-        for category in TodoCategory:
-            category_counts[category.value] = len(self.get_items_by_category(category))
+        for category in TodoCategory.all_values():
+            category_counts[category] = len(self.get_items_by_category(category))
         
         return {
             "total_items": len(self.items),

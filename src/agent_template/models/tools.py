@@ -2,13 +2,12 @@
 
 import uuid
 from datetime import datetime
-from enum import Enum
-from typing import Any, Dict, List, Optional, Union, Callable
+from typing import Any, Dict, List, Optional, Union, Callable, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
 
-class ToolType(str, Enum):
+class ToolType:
     """Types of tools available."""
     
     FUNCTION = "function"
@@ -16,9 +15,16 @@ class ToolType(str, Enum):
     SYSTEM = "system"
     EXTERNAL_API = "external_api"
     SUBAGENT = "subagent"
+    
+    @classmethod
+    def all_values(cls):
+        return [cls.FUNCTION, cls.MCP_TOOL, cls.SYSTEM, cls.EXTERNAL_API, cls.SUBAGENT]
+
+# Type alias for Pydantic validation
+ToolTypeType = Literal["function", "mcp_tool", "system", "external_api", "subagent"]
 
 
-class ToolStatus(str, Enum):
+class ToolStatus:
     """Tool execution status."""
     
     PENDING = "pending"
@@ -27,9 +33,16 @@ class ToolStatus(str, Enum):
     FAILED = "failed"
     TIMEOUT = "timeout"
     CANCELLED = "cancelled"
+    
+    @classmethod
+    def all_values(cls):
+        return [cls.PENDING, cls.RUNNING, cls.COMPLETED, cls.FAILED, cls.TIMEOUT, cls.CANCELLED]
+
+# Type alias for Pydantic validation
+ToolStatusType = Literal["pending", "running", "completed", "failed", "timeout", "cancelled"]
 
 
-class MCPServerStatus(str, Enum):
+class MCPServerStatus:
     """MCP server connection status."""
     
     DISCONNECTED = "disconnected"
@@ -37,6 +50,9 @@ class MCPServerStatus(str, Enum):
     CONNECTED = "connected"
     ERROR = "error"
     RECONNECTING = "reconnecting"
+
+# Type alias for Pydantic validation
+MCPServerStatusType = Literal["disconnected", "connecting", "connected", "error", "reconnecting"]
 
 
 class ToolParameter(BaseModel):
@@ -63,7 +79,7 @@ class ToolDefinition(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     description: str
-    tool_type: ToolType = ToolType.FUNCTION
+    tool_type: ToolTypeType = ToolType.FUNCTION
     
     # Parameters
     parameters: List[ToolParameter] = Field(default_factory=list)
@@ -160,7 +176,7 @@ class ToolCall(BaseModel):
     parameters: Dict[str, Any] = Field(default_factory=dict)
     
     # Execution tracking
-    status: ToolStatus = ToolStatus.PENDING
+    status: ToolStatusType = ToolStatus.PENDING
     created_at: datetime = Field(default_factory=datetime.utcnow)
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
@@ -199,7 +215,7 @@ class ToolResult(BaseModel):
     
     call_id: str
     tool_name: str
-    status: ToolStatus
+    status: ToolStatusType
     
     # Results
     data: Optional[Dict[str, Any]] = None
@@ -228,7 +244,7 @@ class MCPServer(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     url: str
-    status: MCPServerStatus = MCPServerStatus.DISCONNECTED
+    status: MCPServerStatusType = MCPServerStatus.DISCONNECTED
     
     # Configuration
     timeout: int = 30
@@ -320,7 +336,7 @@ class ToolRegistry(BaseModel):
         """Get a tool definition."""
         return self.tools.get(tool_name)
     
-    def list_tools(self, tool_type: Optional[ToolType] = None) -> List[ToolDefinition]:
+    def list_tools(self, tool_type: Optional[ToolTypeType] = None) -> List[ToolDefinition]:
         """List tools, optionally filtered by type."""
         tools = list(self.tools.values())
         if tool_type:
@@ -344,7 +360,7 @@ class ToolRegistry(BaseModel):
         """Get an MCP server."""
         return self.mcp_servers.get(server_name)
     
-    def list_mcp_servers(self, status: Optional[MCPServerStatus] = None) -> List[MCPServer]:
+    def list_mcp_servers(self, status: Optional[MCPServerStatusType] = None) -> List[MCPServer]:
         """List MCP servers, optionally filtered by status."""
         servers = list(self.mcp_servers.values())
         if status:
@@ -382,11 +398,11 @@ class ToolRegistry(BaseModel):
             "failed_calls": self.failed_calls,
             "success_rate": self.success_rate,
             "tools_by_type": {
-                tool_type.value: len([
+                tool_type: len([
                     t for t in self.tools.values() 
                     if t.tool_type == tool_type
                 ])
-                for tool_type in ToolType
+                for tool_type in ToolType.all_values()
             }
         }
 

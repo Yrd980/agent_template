@@ -9,34 +9,21 @@ interactive components.
 import asyncio
 import json
 import time
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Callable
+from typing import Any, Callable, Dict, List, Optional, Set
 
-from rich.console import Console
-from rich.live import Live
-from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
-from rich.syntax import Syntax
-from rich.text import Text
-from rich.tree import Tree
+import structlog
+import websockets
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
 from textual.reactive import reactive
-from textual.widgets import (
-    Button, DataTable, Footer, Header, Input, Log, 
-    ProgressBar, Static, TextArea, Tree as TextualTree
-)
 from textual.screen import Screen
-from textual.binding import Binding
-import websockets
-import structlog
+from textual.widgets import Button, DataTable, Footer, Header, Input, Static
 
-from ..config import settings
 from ..models.messages import Message, MessageRole
 from ..models.tasks import Task, TaskStatus
-from .components import ChatPanel, TaskPanel, StatusPanel, MetricsPanel
-from .widgets import StreamingOutput, TodoWidget, ToolCallWidget
-
+from .components import ChatPanel, MetricsPanel, StatusPanel, TaskPanel
+from .widgets import TodoWidget
 
 logger = structlog.get_logger(__name__)
 

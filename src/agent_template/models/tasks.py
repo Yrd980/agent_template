@@ -2,13 +2,13 @@
 
 import uuid
 from datetime import datetime
-from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Literal
 
 from pydantic import BaseModel, Field
 
 
-class TaskType(str, Enum):
+# Task type constants
+class TaskType:
     """Task types supported by the agent."""
     
     CHAT = "chat"
@@ -19,8 +19,11 @@ class TaskType(str, Enum):
     ANALYSIS = "analysis"
     CUSTOM = "custom"
 
+# Type alias for Pydantic validation
+TaskTypeType = Literal["chat", "completion", "tool_call", "subagent", "compression", "analysis", "custom"]
 
-class TaskStatus(str, Enum):
+
+class TaskStatus:
     """Task execution status."""
     
     PENDING = "pending"
@@ -30,24 +33,29 @@ class TaskStatus(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+# Type alias for Pydantic validation
+TaskStatusType = Literal["pending", "running", "paused", "completed", "failed", "cancelled"]
 
-class TaskPriority(int, Enum):
+
+class TaskPriority:
     """Task priority levels."""
     
     LOW = 1
     NORMAL = 2
     HIGH = 3
     URGENT = 4
-    CRITICAL = 5
+
+# Type alias for Pydantic validation
+TaskPriorityType = Literal[1, 2, 3, 4]
 
 
 class Task(BaseModel):
     """Core task model."""
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    type: TaskType
-    status: TaskStatus = TaskStatus.PENDING
-    priority: TaskPriority = TaskPriority.NORMAL
+    type: TaskTypeType
+    status: TaskStatusType = TaskStatus.PENDING
+    priority: TaskPriorityType = TaskPriority.NORMAL
     
     # Content
     content: Dict[str, Any] = Field(default_factory=dict)
@@ -81,7 +89,7 @@ class Task(BaseModel):
     }
 
 
-class AgentState(str, Enum):
+class AgentState:
     """Agent state enumeration."""
     
     IDLE = "idle"
@@ -92,13 +100,16 @@ class AgentState(str, Enum):
     SHUTTING_DOWN = "shutting_down"
     ERROR = "error"
 
+# Type alias for Pydantic validation
+AgentStateType = Literal["idle", "initializing", "running", "processing", "paused", "shutting_down", "error"]
+
 
 class StateSnapshot(BaseModel):
     """Agent state snapshot."""
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    state: AgentState
+    state: AgentStateType
     
     # Metrics
     active_tasks: int = 0
@@ -127,7 +138,7 @@ class TaskResult(BaseModel):
     """Task execution result."""
     
     task_id: str
-    status: TaskStatus
+    status: TaskStatusType
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
     execution_time: Optional[float] = None  # seconds
@@ -166,7 +177,7 @@ class ToolCall(BaseModel):
     parameters: Dict[str, Any] = Field(default_factory=dict)
     
     # Execution info
-    status: TaskStatus = TaskStatus.PENDING
+    status: TaskStatusType = TaskStatus.PENDING
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     
