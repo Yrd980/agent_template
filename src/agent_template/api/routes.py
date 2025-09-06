@@ -294,7 +294,8 @@ async def send_message(
         
         # Create message
         message = Message(
-            type=request.message_type,
+            role=MessageRole.USER,
+            message_type=request.message_type,
             content=request.content,
             session_id=session_id,
             metadata=request.metadata
@@ -371,7 +372,8 @@ async def stream_message(
         
         # Create message
         message = Message(
-            type=request.message_type,
+            role=MessageRole.USER,
+            message_type=request.message_type,
             content=request.content,
             session_id=session_id,
             metadata=request.metadata

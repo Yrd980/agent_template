@@ -100,13 +100,13 @@ class StreamOutput(RichLog):
         """Add a message to the log."""
         timestamp = datetime.now().strftime("%H:%M:%S")
         
-        if message.type == MessageType.USER:
+        if message.message_type == MessageType.TEXT and message.role == MessageRole.USER:
             self.write(f"[dim]{timestamp}[/dim] [bold blue]User:[/bold blue] {message.content}")
-        elif message.type == MessageType.ASSISTANT:
+        elif message.message_type == MessageType.TEXT and message.role == MessageRole.ASSISTANT:
             self.write(f"[dim]{timestamp}[/dim] [bold green]Agent:[/bold green] {message.content}")
-        elif message.type == MessageType.SYSTEM:
+        elif message.message_type == MessageType.SYSTEM_EVENT:
             self.write(f"[dim]{timestamp}[/dim] [bold yellow]System:[/bold yellow] {message.content}")
-        elif message.type == MessageType.TOOL_CALL:
+        elif message.message_type == MessageType.TOOL_CALL:
             self.write(f"[dim]{timestamp}[/dim] [bold magenta]Tool:[/bold magenta] {message.content}")
         
         # Keep only recent lines
@@ -267,7 +267,8 @@ class AgentTerminalApp(App):
         
         # Create message
         message = Message(
-            type=MessageType.USER,
+            role=MessageRole.USER,
+            message_type=MessageType.TEXT,
             content=message_text,
             session_id=self.session_id or "default"
         )
@@ -280,11 +281,12 @@ class AgentTerminalApp(App):
             try:
                 await self.websocket.send(json.dumps({
                     "type": "message",
-                    "data": message.model_dump()
+                    "data": message.model_dump(mode='json')
                 }))
             except Exception as e:
                 error_msg = Message(
-                    type=MessageType.SYSTEM,
+                    role=MessageRole.SYSTEM,
+                    message_type=MessageType.SYSTEM_EVENT,
                     content=f"Failed to send message: {e}",
                     session_id=self.session_id or "default"
                 )
@@ -312,7 +314,8 @@ class AgentTerminalApp(App):
         except Exception as e:
             self.connection_status = "error"
             error_msg = Message(
-                type=MessageType.SYSTEM,
+                role=MessageRole.SYSTEM,
+                message_type=MessageType.SYSTEM_EVENT,
                 content=f"Connection failed: {e}",
                 session_id="system"
             )
@@ -359,7 +362,8 @@ class AgentTerminalApp(App):
         elif msg_type == "error":
             # Error message
             error_msg = Message(
-                type=MessageType.SYSTEM,
+                role=MessageRole.SYSTEM,
+                message_type=MessageType.SYSTEM_EVENT,
                 content=f"Error: {data.get('message', 'Unknown error')}",
                 session_id=self.session_id or "system"
             )

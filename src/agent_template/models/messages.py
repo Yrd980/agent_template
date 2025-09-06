@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -132,6 +132,7 @@ class Session(BaseModel):
     status: SessionStatus = SessionStatus.ACTIVE
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    last_activity: datetime = Field(default_factory=datetime.utcnow)
     expires_at: Optional[datetime] = None
     
     # Configuration
@@ -151,6 +152,10 @@ class Session(BaseModel):
     user_id: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    
+    # Messages and Context
+    messages: List["Message"] = Field(default_factory=list)
+    context: Optional["Context"] = None
     
     model_config = {
         "use_enum_values": True,
@@ -191,6 +196,11 @@ class Context(BaseModel):
     # System context
     system_message: Optional[str] = None
     persistent_context: Dict[str, Any] = Field(default_factory=dict)
+    
+    # Session manager fields
+    conversation_history: List[Dict[str, Any]] = Field(default_factory=list)
+    variables: Dict[str, Any] = Field(default_factory=dict)
+    active_tools: Set[str] = Field(default_factory=set)
     
     # Metadata
     created_at: datetime = Field(default_factory=datetime.utcnow)

@@ -136,6 +136,21 @@ class TaskScheduler:
             "completed": len(self._completed_tasks),
             "max_concurrent": self.max_concurrent
         }
+    
+    async def cleanup_completed_tasks(self) -> None:
+        """Clean up old completed tasks to prevent memory buildup."""
+        async with self._lock:
+            # Keep only the last 100 completed tasks
+            if len(self._completed_tasks) > 100:
+                # Sort by completion time and keep most recent
+                sorted_tasks = sorted(
+                    self._completed_tasks.items(),
+                    key=lambda x: x[1].completed_at or datetime.utcnow(),
+                    reverse=True
+                )
+                # Keep only the last 100
+                self._completed_tasks = dict(sorted_tasks[:100])
+                logger.info("Cleaned up old completed tasks", remaining=len(self._completed_tasks))
 
 
 class AgentLoop:
@@ -161,19 +176,7 @@ class AgentLoop:
         self._task_count = 0
         self._error_count = 0
         
-        # Setup signal handlers
-        self._setup_signal_handlers()
     
-    def _setup_signal_handlers(self):
-        """Setup graceful shutdown signal handlers."""
-        if sys.platform != "win32":
-            signal.signal(signal.SIGINT, self._signal_handler)
-            signal.signal(signal.SIGTERM, self._signal_handler)
-    
-    def _signal_handler(self, signum, frame):
-        """Handle shutdown signals."""
-        logger.info("Received shutdown signal", signal=signum)
-        asyncio.create_task(self.shutdown())
     
     def on(self, event: str, handler: Callable) -> None:
         """Register an event handler."""
@@ -260,6 +263,10 @@ class AgentLoop:
             await self.emit("agent_error", str(e))
         finally:
             await self._cleanup()
+    
+    async def cleanup_completed_tasks(self) -> None:
+        """Clean up completed tasks."""
+        await self.scheduler.cleanup_completed_tasks()
     
     async def shutdown(self) -> None:
         """Shutdown the agent loop gracefully."""
@@ -409,6 +416,11 @@ class AgentLoop:
         self.state = AgentState.IDLE
         await self.emit("agent_stopped")
         logger.info("Agent loop cleanup completed")
+    
+    @property
+    def is_running(self) -> bool:
+        """Check if the agent loop is running."""
+        return self.running
     
     @property
     def stats(self) -> Dict[str, Any]:

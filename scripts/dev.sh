@@ -43,11 +43,11 @@ case "$1" in
         ;;
     server)
         echo "Starting agent server..."
-        uv run agent-server "${@:2}"
+        NO_PROXY=127.0.0.1,localhost uv run agent-server "${@:2}"
         ;;
     client)
         echo "Starting terminal client..."
-        uv run agent-client "${@:2}"
+        NO_PROXY=127.0.0.1,localhost uv run agent-client "${@:2}"
         ;;
     test)
         echo "Running tests..."

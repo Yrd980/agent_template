@@ -64,22 +64,17 @@ class SessionManager:
                 raise RuntimeError("Maximum number of sessions reached")
         
         session_id = str(uuid4())
-        session = Session(
+        context = Context(
             session_id=session_id,
+            conversation_history=[],
+            variables={},
+            active_tools=set()
+        )
+        session = Session(
+            id=session_id,
             user_id=user_id,
-            created_at=datetime.utcnow(),
-            last_activity=datetime.utcnow(),
             metadata=session_metadata or {},
-            messages=[],
-            context=Context(
-                session_id=session_id,
-                variables={},
-                conversation_history=[],
-                system_messages=[],
-                user_preferences={},
-                active_tools=set(),
-                compression_state={}
-            )
+            context=context
         )
         
         # Store session
@@ -119,10 +114,10 @@ class SessionManager:
     async def update_session(self, session: Session) -> None:
         """Update a session."""
         session.last_activity = datetime.utcnow()
-        self._sessions[session.session_id] = session
+        self._sessions[session.id] = session
         
         # Persist to cache
-        await self.state_cache.set(f"session:{session.session_id}", session.model_dump())
+        await self.state_cache.set(f"session:{session.id}", session.model_dump())
     
     async def delete_session(self, session_id: str) -> bool:
         """Delete a session."""
@@ -332,6 +327,10 @@ class SessionManager:
             "active_contexts": len(self._active_contexts),
         }
     
+    async def cleanup_expired_sessions(self) -> None:
+        """Public method to trigger session cleanup."""
+        await self._cleanup_expired_sessions(force=True)
+    
     async def shutdown(self) -> None:
         """Shutdown the session manager."""
         logger.info("Shutting down SessionManager")
@@ -345,6 +344,6 @@ class SessionManager:
         
         # Persist all active sessions
         for session in self._sessions.values():
-            await self.state_cache.set(f"session:{session.session_id}", session.model_dump())
+            await self.state_cache.set(f"session:{session.id}", session.model_dump())
         
         logger.info("SessionManager shutdown complete")

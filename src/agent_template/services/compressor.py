@@ -920,7 +920,7 @@ class MessageCompressor:
                 role=MessageRole.SYSTEM,
                 content=f"[Compressed History]\n{compressed_history.summary}",
                 session_id=session_id or "unknown",
-                message_type="system_event",
+                message_type=MessageType.SYSTEM_EVENT,
                 compressed=True,
                 compression_ratio=compressed_history.compression_ratio
             )

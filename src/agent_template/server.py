@@ -112,11 +112,11 @@ class AgentServer:
                 if self.session_manager:
                     await self.session_manager.shutdown()
                 if self.tool_manager:
-                    await self.tool_manager.shutdown()
+                    await self.tool_manager.stop()
                 if self.model_manager:
                     await self.model_manager.shutdown()
                 if self.state_cache:
-                    await self.state_cache.close()
+                    await self.state_cache.stop()
                 
                 logger.info("Agent server shutdown complete")
         
@@ -252,14 +252,17 @@ class AgentServer:
         # Create and run server
         server = uvicorn.Server(config)
         
-        # Handle shutdown signals
-        def signal_handler(signum, frame):
+        # Handle shutdown signals using asyncio
+        loop = asyncio.get_running_loop()
+
+        def signal_handler(signum):
             logger.info(f"Received signal {signum}, shutting down...")
             self.shutdown_event.set()
-        
-        signal.signal(signal.SIGTERM, signal_handler)
-        signal.signal(signal.SIGINT, signal_handler)
-        
+            server.should_exit = True
+
+        loop.add_signal_handler(signal.SIGTERM, lambda: signal_handler(signal.SIGTERM))
+        loop.add_signal_handler(signal.SIGINT, lambda: signal_handler(signal.SIGINT))
+
         await server.serve()
 
 

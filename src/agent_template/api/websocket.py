@@ -189,7 +189,8 @@ class WebSocketManager:
         
         # Create message object
         message = Message(
-            type=MessageType.USER,
+            role=MessageRole.USER,
+            message_type=MessageType.TEXT,
             content=message_data.get("content", ""),
             session_id=connection.session_id or "default",
             metadata=message_data.get("metadata", {})
