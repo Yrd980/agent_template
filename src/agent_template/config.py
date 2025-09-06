@@ -28,10 +28,12 @@ class RedisConfig(BaseSettings):
 
 class ModelConfig(BaseSettings):
     """AI model configuration."""
+    model_config = SettingsConfigDict(env_prefix='')
     
     default_provider: str = "openai"
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4-turbo-preview"
+
     anthropic_api_key: Optional[str] = None
     anthropic_model: str = "claude-3-sonnet-20240229"
     
@@ -42,7 +44,7 @@ class ModelConfig(BaseSettings):
     # DeepSeek settings
     deepseek_api_key: Optional[str] = None
     deepseek_model: str = "deepseek-chat"
-    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_base_url: str = "https://api.deepseek.com/v1"
     
     # Qwen settings  
     qwen_api_key: Optional[str] = None

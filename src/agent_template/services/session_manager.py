@@ -163,9 +163,9 @@ class SessionManager:
         async with self._session_locks[session_id]:
             session.messages.append(message)
             session.context.conversation_history.append({
-                "role": message.message_type.value,
+                "role": message.message_type,
                 "content": message.content,
-                "timestamp": message.created_at.isoformat(),
+                "timestamp": message.timestamp.isoformat(),
                 "metadata": message.metadata
             })
             
@@ -222,7 +222,11 @@ class SessionManager:
         if not context:
             raise ValueError(f"Session {session_id} not found")
         
-        context.system_messages.append({
+        # Add to persistent context instead since system_messages doesn't exist
+        if "system_messages" not in context.persistent_context:
+            context.persistent_context["system_messages"] = []
+        
+        context.persistent_context["system_messages"].append({
             "content": message,
             "timestamp": datetime.utcnow().isoformat()
         })
@@ -240,7 +244,11 @@ class SessionManager:
         if not context:
             raise ValueError(f"Session {session_id} not found")
         
-        context.user_preferences[key] = value
+        # Use persistent_context for user preferences since user_preferences doesn't exist
+        if "user_preferences" not in context.persistent_context:
+            context.persistent_context["user_preferences"] = {}
+        
+        context.persistent_context["user_preferences"][key] = value
         await self.update_context(session_id, context)
     
     async def activate_tool(self, session_id: str, tool_name: str) -> None:
@@ -261,6 +269,18 @@ class SessionManager:
         context.active_tools.discard(tool_name)
         await self.update_context(session_id, context)
     
+    async def get_messages(self, session_id: str, limit: Optional[int] = None) -> List[Message]:
+        """Get messages from a session."""
+        session = await self.get_session(session_id)
+        if not session:
+            return []
+        
+        messages = session.messages
+        if limit is not None:
+            messages = messages[-limit:]  # Get last N messages
+        
+        return messages
+    
     async def get_session_stats(self, session_id: str) -> Dict[str, Any]:
         """Get statistics for a session."""
         session = await self.get_session(session_id)
@@ -272,7 +292,7 @@ class SessionManager:
         
         message_counts = {}
         for message in session.messages:
-            msg_type = message.message_type.value
+            msg_type = message.message_type
             message_counts[msg_type] = message_counts.get(msg_type, 0) + 1
         
         return {
@@ -325,6 +345,17 @@ class SessionManager:
             **self._metrics,
             "active_sessions": len(self._sessions),
             "active_contexts": len(self._active_contexts),
+        }
+    
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get statistics for all sessions."""
+        return {
+            "total_sessions": self._metrics["sessions_created"],
+            "active_sessions": len(self._sessions),
+            "expired_sessions": self._metrics["sessions_expired"],
+            "total_messages": self._metrics["messages_processed"],
+            "context_switches": self._metrics["context_switches"],
+            "max_sessions": self.max_sessions
         }
     
     async def cleanup_expired_sessions(self) -> None:

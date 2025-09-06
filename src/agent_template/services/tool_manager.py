@@ -754,6 +754,19 @@ class ToolManager:
             }
         }
     
+    def get_stats(self) -> Dict[str, Any]:
+        """Get tool manager statistics."""
+        return {
+            "registered_tools": len(self.registry.tools),
+            "active_calls": len(self._active_calls),
+            "total_calls": self.registry.total_calls,
+            "successful_calls": self.registry.successful_calls,
+            "failed_calls": self.registry.failed_calls,
+            "function_tools": len(self._functions),
+            "mcp_clients": len(self._mcp_clients),
+            "execution_contexts": len(self._execution_contexts)
+        }
+    
     # Context manager for tool execution
     @asynccontextmanager
     async def execution_context(

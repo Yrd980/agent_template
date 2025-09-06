@@ -2,13 +2,12 @@
 
 import uuid
 from datetime import datetime, timedelta
-from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Union, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
 
-class MessageRole(str, Enum):
+class MessageRole:
     """Message roles in the conversation."""
     
     SYSTEM = "system"
@@ -17,8 +16,11 @@ class MessageRole(str, Enum):
     TOOL = "tool"
     FUNCTION = "function"  # Legacy support
 
+# Type alias for Pydantic validation
+MessageRoleType = Literal["system", "user", "assistant", "tool", "function"]
 
-class MessageType(str, Enum):
+
+class MessageType:
     """Message types for different content formats."""
     
     TEXT = "text"
@@ -30,24 +32,29 @@ class MessageType(str, Enum):
     TOOL_RESULT = "tool_result"
     SYSTEM_EVENT = "system_event"
 
+# Type alias for Pydantic validation
+MessageTypeType = Literal["text", "image", "audio", "video", "file", "tool_call", "tool_result", "system_event"]
 
-class SessionStatus(str, Enum):
+
+class SessionStatus:
     """Session status enumeration."""
     
     ACTIVE = "active"
     PAUSED = "paused"
     COMPLETED = "completed"
     EXPIRED = "expired"
-    ERROR = "error"
+
+# Type alias for Pydantic validation
+SessionStatusType = Literal["active", "paused", "completed", "expired"]
 
 
 class Message(BaseModel):
     """Core message model."""
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    role: MessageRole
+    role: MessageRoleType
     content: Union[str, List[Dict[str, Any]], Dict[str, Any]]
-    message_type: MessageType = MessageType.TEXT
+    message_type: MessageTypeType = MessageType.TEXT
     
     # Metadata
     timestamp: datetime = Field(default_factory=datetime.utcnow)
@@ -73,7 +80,6 @@ class Message(BaseModel):
     compression_ratio: Optional[float] = None
     
     model_config = {
-        "use_enum_values": True,
         "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
@@ -129,7 +135,7 @@ class Session(BaseModel):
     description: Optional[str] = None
     
     # Status and timing
-    status: SessionStatus = SessionStatus.ACTIVE
+    status: SessionStatusType = SessionStatus.ACTIVE
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     last_activity: datetime = Field(default_factory=datetime.utcnow)
@@ -158,7 +164,6 @@ class Session(BaseModel):
     context: Optional["Context"] = None
     
     model_config = {
-        "use_enum_values": True,
         "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
@@ -334,8 +339,8 @@ class MessageFilter(BaseModel):
     
     session_id: Optional[str] = None
     thread_id: Optional[str] = None
-    role: Optional[MessageRole] = None
-    message_type: Optional[MessageType] = None
+    role: Optional[MessageRoleType] = None
+    message_type: Optional[MessageTypeType] = None
     
     # Time range
     start_time: Optional[datetime] = None
@@ -355,7 +360,6 @@ class MessageFilter(BaseModel):
     descending: bool = True
     
     model_config = {
-        "use_enum_values": True,
         "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }

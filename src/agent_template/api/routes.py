@@ -9,9 +9,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from ..core.agent_loop import AgentLoop
-from ..models.messages import Message, MessageType, MessageRole
+from ..models.messages import Message, MessageType, MessageRole, MessageRoleType, MessageTypeType
 from ..core.stream_gen import StreamGenerator
-from ..models.tasks import Task, TaskStatus, TaskType
+from ..models.tasks import Task, TaskStatus, TaskType, TaskStatusType, TaskTypeType
 from ..services.session_manager import SessionManager
 from ..services.tool_manager import ToolManager
 from ..services.state_cache import StateCache
@@ -23,14 +23,14 @@ logger = logging.getLogger(__name__)
 class MessageRequest(BaseModel):
     content: str
     session_id: Optional[str] = None
-    role: MessageRole = MessageRole.USER
-    message_type: MessageType = MessageType.TEXT
+    role: MessageRoleType = MessageRole.USER
+    message_type: MessageTypeType = MessageType.TEXT
     metadata: Dict[str, Any] = {}
 
 
 class MessageResponse(BaseModel):
     id: str
-    type: MessageType
+    type: MessageTypeType
     content: str
     session_id: str
     timestamp: datetime
@@ -50,7 +50,7 @@ class SessionResponse(BaseModel):
 
 
 class TaskRequest(BaseModel):
-    type: TaskType
+    type: TaskTypeType
     content: Dict[str, Any]
     session_id: Optional[str] = None
     priority: int = 2
@@ -59,14 +59,13 @@ class TaskRequest(BaseModel):
 
 class TaskResponse(BaseModel):
     id: str
-    type: TaskType
-    status: TaskStatus
+    type: TaskTypeType
+    status: TaskStatusType
     progress: float
     created_at: datetime
     session_id: Optional[str] = None
 
     model_config = {
-        "use_enum_values": True,
         "json_encoders": {
             datetime: lambda v: v.isoformat(),
         }
@@ -131,7 +130,7 @@ router = APIRouter(prefix="/api/v1", tags=["Agent API"])
 @router.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "timestamp": datetime.utcnow()}
+    return {"status": "healthy", "timestamp": datetime.now()}
 
 
 @router.get("/stats", response_model=StatsResponse)
@@ -285,22 +284,28 @@ async def send_message(
     deps: APIDependencies = Depends(get_dependencies)
 ):
     """Send a message to the agent."""
+    logger.info(f"send_message called with content: {request.content[:50]}...")
     try:
         # Create session if not provided
         if not request.session_id:
+            logger.info("Creating new session")
             session = await deps.session_manager.create_session()
             session_id = session.id
+            logger.info(f"New session created: {session_id}")
         else:
             session_id = request.session_id
+            logger.info(f"Using existing session: {session_id}")
             # Verify session exists
             session = await deps.session_manager.get_session(session_id)
             if not session:
+                logger.error(f"Session {session_id} not found")
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Session {session_id} not found"
                 )
-        
+
         # Create message
+        logger.info("Creating message object")
         message = Message(
             role=MessageRole.USER,
             message_type=request.message_type,
@@ -308,22 +313,100 @@ async def send_message(
             session_id=session_id,
             metadata=request.metadata
         )
-        
+        logger.info(f"Message created: {message.id}")
+
         # Add to session
+        logger.info("Adding message to session")
         await deps.session_manager.add_message(session_id, message)
-        
-        # Process with agent loop
-        await deps.agent_loop.process_message(message)
-        
+
+        # Process message with model
+        logger.info("Processing message with model")
+        from ..services.model_provider import model_manager, ProviderType
+
+        # Get context messages
+        context = await deps.session_manager.get_context(session_id)
+        context_messages = []
+        if context:
+            # Convert conversation history to Message objects
+            for item in context.conversation_history:
+                msg = Message(
+                    role=MessageRole.USER if item.get("role") == "user" else MessageRole.ASSISTANT,
+                    message_type=MessageType.TEXT,
+                    content=item.get("content", ""),
+                    session_id=session_id,
+                    metadata=item.get("metadata", {})
+                )
+                context_messages.append(msg)
+        logger.info(f"Retrieved {len(context_messages)} context messages")
+
+        # Prepare messages for model
+        from ..services.model_provider import ModelRequest
+        model_request = ModelRequest(
+            messages=context_messages + [message],
+            model="deepseek-chat",  # Use DeepSeek as configured
+            temperature=0.7
+        )
+
+        # Debug: Check settings and providers
+        from ..config import settings
+        logger.info(f"DeepSeek API key configured: {bool(settings.models.deepseek_api_key)}")
+        logger.info(f"Default provider from settings: {settings.models.default_provider}")
+        logger.info(f"Available providers: {model_manager.available_providers}")
+        logger.info(f"Default provider: {model_manager.default_provider}")
+
+        # Manually initialize DeepSeek if not available
+        if ProviderType.DEEPSEEK not in model_manager.available_providers:
+            logger.info("Manually initializing DeepSeek provider")
+            from ..services.model_provider import DeepSeekProvider
+            from ..config import settings
+            try:
+                deepseek_provider = DeepSeekProvider()
+                await deepseek_provider.initialize()
+                model_manager._providers[ProviderType.DEEPSEEK] = deepseek_provider
+                logger.info("DeepSeek provider initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize DeepSeek provider: {e}")
+
+        # Debug: Check model validation
+        deepseek_provider = model_manager._providers.get(ProviderType.DEEPSEEK)
+        if deepseek_provider:
+            is_valid = await deepseek_provider.validate_request(model_request)
+            logger.info(f"Model request validation: {is_valid}")
+            if not is_valid:
+                model_info = await deepseek_provider.get_model_info(model_request.model)
+                logger.info(f"Model info: {model_info}")
+                total_tokens = sum(msg.estimate_tokens() for msg in model_request.messages)
+                logger.info(f"Total tokens: {total_tokens}, Context window: {model_info.context_window if model_info else 'N/A'}")
+
+        # Generate response
+        try:
+            response = await model_manager.chat_completion(model_request, provider=ProviderType.DEEPSEEK)
+            logger.info(f"Response generated from model: {type(response)}")
+        except Exception as e:
+            logger.error(f"Error in chat completion: {e}")
+            raise
+
+        # Create response message
+        response_message = Message(
+            role=MessageRole.ASSISTANT,
+            message_type=MessageType.TEXT,
+            content=response.content if hasattr(response, 'content') else str(response),
+            session_id=session_id
+        )
+
+        # Add response to session
+        await deps.session_manager.add_message(session_id, response_message)
+        logger.info("Response message added to session")
+
         return MessageResponse(
             id=message.id,
-            type=message.type,
-            content=message.content,
+            type=message.message_type,
+            content=response_message.content,
             session_id=message.session_id,
             timestamp=message.timestamp,
             metadata=message.metadata
         )
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -434,13 +517,14 @@ async def create_task(
 ):
     """Create a new task."""
     try:
-        task = await deps.agent_loop.create_task(
-            task_type=request.type,
-            content=request.content,
-            session_id=request.session_id,
-            priority=request.priority,
-            timeout=request.timeout
-        )
+        from ..models.tasks import TaskPriority
+        task = await deps.agent_loop.create_task({
+            "type": request.type,
+            "content": request.content,
+            "session_id": request.session_id,
+            "priority": TaskPriority(request.priority),
+            "timeout": request.timeout
+        })
         
         return TaskResponse(
             id=task.id,
@@ -462,7 +546,7 @@ async def create_task(
 @router.get("/tasks", response_model=List[TaskResponse])
 async def list_tasks(
     session_id: Optional[str] = Query(None),
-    status: Optional[TaskStatus] = Query(None),
+    status: Optional[TaskStatusType] = Query(None),
     limit: int = Query(50, ge=1, le=100),
     deps: APIDependencies = Depends(get_dependencies)
 ):

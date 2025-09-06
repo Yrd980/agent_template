@@ -10,7 +10,7 @@ import logging
 import signal
 import sys
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Callable, AsyncGenerator
 from weakref import WeakSet
 
@@ -18,9 +18,10 @@ import structlog
 
 from ..config import settings
 from ..models.tasks import (
-    Task, TaskStatus, TaskPriority, TaskType, TaskResult, 
+    Task, TaskStatus, TaskPriority, TaskType, TaskResult,
     AgentState, StateSnapshot
 )
+from ..models.messages import Message, MessageRole, MessageType
 
 
 logger = structlog.get_logger(__name__)
@@ -48,7 +49,7 @@ class TaskScheduler:
             
             # Sort by priority
             self._pending_tasks.sort(
-                key=lambda t: (t.priority.value, t.created_at), 
+                key=lambda t: (t.priority, t.created_at), 
                 reverse=True
             )
             
@@ -261,7 +262,7 @@ class AgentLoop:
             await self._shutdown_event.wait()
             
         except Exception as e:
-            logger.error("Error in agent loop", error=str(e))
+            logger.error("Error in agent loop", exception=str(e))
             self.state = AgentState.ERROR
             self._error_count += 1
             await self.emit("agent_error", str(e))
@@ -305,7 +306,7 @@ class AgentLoop:
                     self.state = AgentState.RUNNING
                 
             except Exception as e:
-                logger.error("Error in main loop", error=str(e))
+                logger.error("Error in main loop", exception=str(e))
                 self._error_count += 1
                 await asyncio.sleep(1)  # Prevent tight error loops
     
@@ -361,7 +362,7 @@ class AgentLoop:
         # This would be implemented by specific task handlers
         # For now, just emit an event for external handlers
         result = {}
-        await self.emit(f"execute_{task.type.value}", {"task": task, "result": result})
+        await self.emit(f"execute_{task.type}", {"task": task, "result": result})
         return result
     
     async def _state_monitor(self) -> None:
@@ -392,7 +393,7 @@ class AgentLoop:
                 await asyncio.sleep(5)  # Update every 5 seconds
                 
             except Exception as e:
-                logger.error("Error in state monitor", error=str(e))
+                logger.error("Error in state monitor", exception=str(e))
                 await asyncio.sleep(5)
     
     async def _health_checker(self) -> None:
@@ -412,7 +413,7 @@ class AgentLoop:
                 await asyncio.sleep(30)  # Health check every 30 seconds
                 
             except Exception as e:
-                logger.error("Error in health checker", error=str(e))
+                logger.error("Error in health checker", exception=str(e))
                 await asyncio.sleep(30)
     
     async def _cleanup(self) -> None:
@@ -453,6 +454,21 @@ class AgentLoop:
             "sessions": len(self._sessions)
         }
     
+    async def get_stats(self) -> Dict[str, Any]:
+        """Get agent statistics (async method for API compatibility)."""
+        return {
+            "active_tasks": len(self.scheduler._running_tasks),
+            "pending_tasks": len(self.scheduler._pending_tasks),
+            "completed_tasks": len(self.scheduler._completed_tasks),
+            "total_tasks": self._task_count,
+            "error_count": self._error_count,
+            "uptime": (
+                datetime.utcnow() - self._start_time
+            ).total_seconds() if self._start_time else 0,
+            "state": self.state.value if hasattr(self.state, 'value') else str(self.state),
+            "running": self.running
+        }
+    
     @asynccontextmanager
     async def session(self, session_id: str) -> AsyncGenerator[None, None]:
         """Context manager for session tracking."""
@@ -467,3 +483,20 @@ class AgentLoop:
         finally:
             # WeakSet will automatically clean up when tracker goes out of scope
             pass
+    
+    async def process_message(self, message: Message) -> None:
+        """Process a message by creating and scheduling a message processing task."""
+        task_data = {
+            "id": f"message_processing_{message.id}",
+            "type": TaskType.CHAT,
+            "priority": TaskPriority.NORMAL,
+            "content": {
+                "message": message,
+                "session_id": message.session_id,
+                "message_id": message.id
+            },
+            "timeout": settings.agent.task_timeout
+        }
+        
+        task = await self.create_task(task_data)
+        logger.info("Created message processing task", task_id=task.id, message_id=message.id)

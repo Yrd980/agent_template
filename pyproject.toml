@@ -99,3 +99,8 @@ strict_equality = true
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "--cov=agent_template --cov-report=term-missing"
+
+[dependency-groups]
+dev = [
+    "debugpy>=1.8.16",
+]
