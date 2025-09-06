@@ -53,9 +53,9 @@ class TaskTable(Static):
             
             table.add_row(
                 task.id[:8],
-                task.type.value,
-                task.status.value,
-                str(task.priority.value),
+                task.type,
+                task.status,
+                str(task.priority),
                 progress_text,
                 created_text
             )
@@ -68,7 +68,7 @@ class ModelStatus(Static):
     
     def __init__(self) -> None:
         super().__init__()
-        self.current_provider = "openai"
+        self.current_provider = "deepseek"
         self.model_stats: Dict[str, Any] = {}
     
     def update_status(self, provider: str, stats: Dict[str, Any]) -> None:

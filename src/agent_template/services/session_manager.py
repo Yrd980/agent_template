@@ -83,7 +83,7 @@ class SessionManager:
         self._active_contexts[session_id] = session.context
         
         # Persist to cache
-        await self.state_cache.set(f"session:{session_id}", session.model_dump())
+        await self.state_cache.put(f"session:{session_id}", session.model_dump())
         
         self._metrics["sessions_created"] += 1
         logger.info(f"Created session {session_id} for user {user_id}")
@@ -117,7 +117,7 @@ class SessionManager:
         self._sessions[session.id] = session
         
         # Persist to cache
-        await self.state_cache.set(f"session:{session.id}", session.model_dump())
+        await self.state_cache.put(f"session:{session.id}", session.model_dump())
     
     async def delete_session(self, session_id: str) -> bool:
         """Delete a session."""
@@ -132,7 +132,7 @@ class SessionManager:
             del self._active_contexts[session_id]
         
         # Remove from cache
-        await self.state_cache.delete(f"session:{session_id}")
+        await self.state_cache.remove(f"session:{session_id}")
         
         logger.info(f"Deleted session {session_id}")
         return True
@@ -344,6 +344,6 @@ class SessionManager:
         
         # Persist all active sessions
         for session in self._sessions.values():
-            await self.state_cache.set(f"session:{session.id}", session.model_dump())
+            await self.state_cache.put(f"session:{session.id}", session.model_dump())
         
         logger.info("SessionManager shutdown complete")

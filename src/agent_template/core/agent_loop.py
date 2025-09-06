@@ -77,17 +77,21 @@ class TaskScheduler:
         async with self._lock:
             if task_id in self._running_tasks:
                 task = self._running_tasks.pop(task_id)
-                task.status = result.status
-                task.completed_at = datetime.utcnow()
-                task.result = result.result
-                task.error = result.error
-                
+                try:
+                    task.status = result.status
+                    task.completed_at = datetime.utcnow()
+                    task.result = result.result
+                    task.error = result.error
+                except AttributeError as e:
+                    logger.error("AttributeError setting task attributes", task_id=task_id, error=str(e))
+                    raise
+
                 self._completed_tasks[task_id] = result
-                
+
                 # Clean up dependencies
                 if task_id in self._task_dependencies:
                     del self._task_dependencies[task_id]
-                
+
                 logger.info("Task completed", task_id=task_id, status=result.status)
     
     async def cancel_task(self, task_id: str) -> bool:
@@ -308,37 +312,49 @@ class AgentLoop:
     async def _execute_task(self, task: Task) -> TaskResult:
         """Execute a single task."""
         start_time = datetime.utcnow()
-        
+
         try:
             logger.info("Executing task", task_id=task.id, task_type=task.type)
             await self.emit("task_started", task)
-            
+
             # Task execution logic would be implemented by handlers
             result_data = await self._dispatch_task(task)
-            
+
             execution_time = (datetime.utcnow() - start_time).total_seconds()
-            
-            return TaskResult(
-                task_id=task.id,
-                status=TaskStatus.COMPLETED,
-                result=result_data,
-                execution_time=execution_time
-            )
-            
+
+            try:
+                return TaskResult(
+                    task_id=task.id,
+                    status=TaskStatus.COMPLETED,
+                    result=result_data,
+                    execution_time=execution_time
+                )
+            except AttributeError as e:
+                logger.error("AttributeError creating TaskResult", task_id=task.id, error=str(e))
+                raise
+
         except asyncio.TimeoutError:
             logger.warning("Task timed out", task_id=task.id)
-            return TaskResult(
-                task_id=task.id,
-                status=TaskStatus.FAILED,
-                error="Task execution timed out"
-            )
+            try:
+                return TaskResult(
+                    task_id=task.id,
+                    status=TaskStatus.FAILED,
+                    error="Task execution timed out"
+                )
+            except AttributeError as e:
+                logger.error("AttributeError creating TaskResult for timeout", task_id=task.id, error=str(e))
+                raise
         except Exception as e:
             logger.error("Task execution failed", task_id=task.id, error=str(e))
-            return TaskResult(
-                task_id=task.id,
-                status=TaskStatus.FAILED,
-                error=str(e)
-            )
+            try:
+                return TaskResult(
+                    task_id=task.id,
+                    status=TaskStatus.FAILED,
+                    error=str(e)
+                )
+            except AttributeError as e:
+                logger.error("AttributeError creating TaskResult for failure", task_id=task.id, error=str(e))
+                raise
     
     async def _dispatch_task(self, task: Task) -> Dict[str, Any]:
         """Dispatch task to appropriate handler."""

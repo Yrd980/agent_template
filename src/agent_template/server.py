@@ -172,10 +172,16 @@ class AgentServer:
         @app.get("/health")
         async def health():
             """Health check endpoint."""
+            try:
+                agent_loop_status = self.agent_loop.is_running if self.agent_loop else False
+            except AttributeError as e:
+                logger.error("AttributeError accessing agent_loop.is_running", error=str(e))
+                agent_loop_status = False
+
             return {
                 "status": "healthy",
                 "components": {
-                    "agent_loop": self.agent_loop.is_running if self.agent_loop else False,
+                    "agent_loop": agent_loop_status,
                     "session_manager": bool(self.session_manager),
                     "tool_manager": bool(self.tool_manager),
                     "model_manager": bool(self.model_manager),
