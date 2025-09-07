@@ -8,6 +8,7 @@ from .agent import Agent
 from .config import Config
 from .logging import setup_logging
 from .tui.repl import REPL
+from .runtime.listeners import attach_default_listeners
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,10 +47,10 @@ def main() -> None:
     logging.getLogger("agentx").info("Starting AgentX", extra={})
 
     agent = Agent.from_config(cfg)
+    attach_default_listeners(agent)
     repl = REPL(agent)
     repl.run()
 
 
 if __name__ == "__main__":
     main()
-

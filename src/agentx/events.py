@@ -22,3 +22,21 @@ class EventBus:
                 # Keep bus resilient: ignore handler errors for now
                 pass
 
+
+# Common event names (lightweight constants)
+EV_TOKEN = "token"
+
+# Config events
+EV_CONFIG_RELOAD = "config.reload"         # { overrides?: dict }
+EV_CONFIG_UPDATE = "config.update"         # { data: dict }
+EV_CONFIG_UPDATED = "config.updated"       # { config: dict }
+
+# Provider/model events
+EV_PROVIDER_SET = "provider.set"           # { name: str }
+EV_PROVIDER_UPDATED = "provider.updated"   # { name: str }
+EV_MODEL_SET = "model.set"                 # { name: str }
+EV_MODEL_UPDATED = "model.updated"         # { name: str }
+
+# History/session events
+EV_HISTORY_CLEAR = "history.clear"         # {}
+EV_HISTORY_CLEARED = "history.cleared"     # {}
