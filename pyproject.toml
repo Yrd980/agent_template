@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentx"
+version = "0.1.0"
+description = "Extensible multi-provider agent CLI (TUI REPL)"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name = "AgentX", email = "noreply@example.com"}]
+dependencies = []
+
+[project.scripts]
+agentx = "agentx.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["agentx*"]
