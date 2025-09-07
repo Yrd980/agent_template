@@ -1,0 +1,102 @@
+from __future__ import annotations
+
+import json
+import logging
+import os
+from typing import Dict, Iterable, Optional
+from urllib import request, error
+
+from .base import ChatRequest, ChatResponse, Provider, StreamDelta
+from .registry import register_provider
+
+
+class OpenAIProvider(Provider):
+    name = "openai"
+
+    def __init__(self, *, config, logger: Optional[logging.Logger] = None) -> None:
+        super().__init__(config=config, logger=logger or logging.getLogger("provider.openai"))
+        self.log = logger or logging.getLogger("provider.openai")
+
+    def _base_url(self) -> str:
+        return self.config.endpoints.get("openai", "https://api.openai.com/v1")
+
+    def _api_key(self) -> str:
+        # Prefer env, then config.keys
+        return os.getenv("OPENAI_API_KEY") or self.config.keys.get("OPENAI_API_KEY", "")
+
+    def _timeout(self, req: ChatRequest) -> float:
+        # Use read_ms as the overall timeout fallback
+        t = (req.timeout_s if req.timeout_s is not None else self.config.timeouts.read_ms / 1000.0)
+        return max(1.0, float(t))
+
+    def _build_payload(self, req: ChatRequest, stream: bool) -> Dict:
+        model = (req.model or self.config.model or "gpt-4o-mini")
+        messages = [{"role": m.role, "content": m.content} for m in req.messages]
+        payload: Dict = {"model": model, "messages": messages, "stream": stream}
+        if req.extra:
+            payload.update(req.extra)
+        return payload
+
+    def _request(self, path: str, payload: Dict, timeout: float, stream: bool) -> request.addinfourl:
+        url = f"{self._base_url().rstrip('/')}/{path.lstrip('/')}"
+        data = json.dumps(payload).encode("utf-8")
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self._api_key()}",
+        }
+        req = request.Request(url, data=data, headers=headers, method="POST")
+        try:
+            resp = request.urlopen(req, timeout=timeout)
+            return resp
+        except error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="ignore")
+            self.log.error("HTTPError %s: %s", e.code, body)
+            raise
+        except error.URLError as e:
+            self.log.error("URLError: %s", e)
+            raise
+
+    def complete(self, req: ChatRequest) -> ChatResponse:
+        payload = self._build_payload(req, stream=False)
+        resp = self._request("chat/completions", payload, timeout=self._timeout(req), stream=False)
+        text = resp.read().decode("utf-8")
+        data = json.loads(text)
+        content = ""
+        try:
+            content = data["choices"][0]["message"]["content"] or ""
+        except Exception:
+            self.log.debug("Unexpected response shape: %s", text)
+        return ChatResponse(content=content, model=payload.get("model"))
+
+    def stream(self, req: ChatRequest) -> Iterable[StreamDelta]:
+        payload = self._build_payload(req, stream=True)
+        resp = self._request("chat/completions", payload, timeout=self._timeout(req), stream=True)
+        # Stream Server-Sent Events; lines start with 'data:' and end with blank line between events
+        try:
+            for raw in resp:
+                line = raw.decode("utf-8", errors="ignore").strip()
+                if not line or not line.startswith("data:"):
+                    continue
+                data_str = line[len("data:"):].strip()
+                if data_str == "[DONE]":
+                    yield StreamDelta(content="", done=True)
+                    break
+                try:
+                    obj = json.loads(data_str)
+                except Exception:
+                    continue
+                try:
+                    delta = obj["choices"][0]["delta"].get("content", "")
+                except Exception:
+                    delta = ""
+                if delta:
+                    yield StreamDelta(content=delta, done=False)
+        finally:
+            try:
+                resp.close()
+            except Exception:
+                pass
+
+
+register_provider("openai", OpenAIProvider)
+
