@@ -4,10 +4,11 @@ import json
 import logging
 import os
 from typing import Dict, Iterable, Optional
-from urllib import request, error
 
 from .base import ChatRequest, ChatResponse, Provider, StreamDelta
 from .registry import register_provider
+from ..errors import ProviderError
+from ..http import post_json
 
 
 class OpenAIProvider(Provider):
@@ -37,24 +38,24 @@ class OpenAIProvider(Provider):
             payload.update(req.extra)
         return payload
 
-    def _request(self, path: str, payload: Dict, timeout: float, stream: bool) -> request.addinfourl:
-        url = f"{self._base_url().rstrip('/')}/{path.lstrip('/')}"
-        data = json.dumps(payload).encode("utf-8")
+    def _request(self, path: str, payload: Dict, timeout: float, stream: bool):
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key()}",
         }
-        req = request.Request(url, data=data, headers=headers, method="POST")
-        try:
-            resp = request.urlopen(req, timeout=timeout)
-            return resp
-        except error.HTTPError as e:
-            body = e.read().decode("utf-8", errors="ignore")
-            self.log.error("HTTPError %s: %s", e.code, body)
-            raise
-        except error.URLError as e:
-            self.log.error("URLError: %s", e)
-            raise
+        if not self._api_key():
+            raise ProviderError("Missing OPENAI_API_KEY")
+        resp = post_json(
+            base_url=self._base_url(),
+            path=path,
+            payload=payload,
+            headers=headers,
+            timeout_s=timeout,
+            max_attempts=self.config.retries.max_attempts,
+            backoff=(self.config.retries.backoff.base_ms, self.config.retries.backoff.factor, self.config.retries.backoff.jitter),
+            accept_sse=stream,
+        )
+        return resp
 
     def complete(self, req: ChatRequest) -> ChatResponse:
         payload = self._build_payload(req, stream=False)
@@ -99,4 +100,3 @@ class OpenAIProvider(Provider):
 
 
 register_provider("openai", OpenAIProvider)
-
