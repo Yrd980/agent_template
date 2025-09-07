@@ -1,9 +1,12 @@
 {
-  "provider": "openai",
-  "model": "gpt-4o-mini",
+  "provider": "deepseek",
+  "model": "deepseek-chat",
   "streaming": true,
   "timeouts": { "connect_ms": 10000, "read_ms": 60000 },
-  "retries": { "max_attempts": 3, "backoff": { "base_ms": 200, "factor": 2.0, "jitter": true } },
+  "retries": {
+    "max_attempts": 3,
+    "backoff": { "base_ms": 200, "factor": 2.0, "jitter": true }
+  },
   "endpoints": {
     "openai": "https://api.openai.com/v1",
     "ollama": "http://localhost:11434",

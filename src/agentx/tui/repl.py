@@ -9,6 +9,7 @@ from ..agent import Agent
 from ..events import (
     EV_CONFIG_RELOAD,
     EV_CONFIG_UPDATE,
+    EV_CONFIG_UPDATED,
     EV_HISTORY_CLEAR,
     EV_HISTORY_CLEARED,
     EV_MODEL_SET,
@@ -40,12 +41,13 @@ class REPL:
     def _register_commands(self) -> None:
         self.register(Command("help", "Show help", lambda s, a: s._cmd_help()))
         self.register(Command("exit", "Exit", lambda s, a: setattr(s, "_stop", True)))
-        self.register(Command("provider", "Get/Set provider", self._cmd_provider))
-        self.register(Command("model", "Get/Set model", self._cmd_model))
-        self.register(Command("history", "Show history length", self._cmd_history))
-        self.register(Command("clear", "Clear history", self._cmd_clear))
-        self.register(Command("reload", "Reload config (.env + json)", self._cmd_reload))
-        self.register(Command("set", "Update config: /set key=value", self._cmd_set))
+        self.register(Command("provider", "Get/Set provider", lambda s, a: s._cmd_provider(a)))
+        self.register(Command("model", "Get/Set model", lambda s, a: s._cmd_model(a)))
+        self.register(Command("history", "Show history length", lambda s, a: s._cmd_history(a)))
+        self.register(Command("clear", "Clear history", lambda s, a: s._cmd_clear(a)))
+        self.register(Command("reload", "Reload config (.env + json)", lambda s, a: s._cmd_reload(a)))
+        self.register(Command("set", "Update config: /set key=value", lambda s, a: s._cmd_set(a)))
+        self.register(Command("cancel", "Cancel current streaming reply (use Ctrl+C)", lambda s, a: s._cmd_cancel(a)))
 
     def _attach_bus_handlers(self) -> None:
         bus = self.agent.bus
@@ -64,10 +66,34 @@ class REPL:
         def on_history_cleared(_payload):
             print("history cleared")
 
+        def on_config_reload(_payload):
+            print("reloading config…")
+
+        def on_config_update(payload):
+            data = payload.get("data", {}) if isinstance(payload, dict) else {}
+            if isinstance(data, dict) and data:
+                keys = ", ".join(sorted(data.keys()))
+                print(f"updating config: {keys}")
+            else:
+                print("updating config…")
+
         bus.subscribe(EV_PROVIDER_UPDATED, on_provider_updated)
         bus.subscribe(EV_MODEL_UPDATED, on_model_updated)
         bus.subscribe(EV_CONFIG_UPDATED, on_config_updated)
         bus.subscribe(EV_HISTORY_CLEARED, on_history_cleared)
+        bus.subscribe(EV_CONFIG_RELOAD, on_config_reload)
+        bus.subscribe(EV_CONFIG_UPDATE, on_config_update)
+
+        # Live token streaming
+        def on_token(payload):
+            delta = payload.get("delta", "")
+            done = bool(payload.get("done", False))
+            if delta:
+                print(delta, end="", flush=True)
+            if done:
+                print()
+
+        bus.subscribe("token", on_token)
 
     def register(self, cmd: Command) -> None:
         self.commands[cmd.name] = cmd
@@ -132,6 +158,12 @@ class REPL:
         if updates:
             self.agent.bus.publish(EV_CONFIG_UPDATE, {"data": updates})
 
+    def _cmd_cancel(self, args: str) -> None:  # noqa: ARG002
+        if getattr(self.agent, "in_flight", False):
+            print("Tip: press Ctrl+C to cancel active reply.")
+        else:
+            print("No active reply to cancel.")
+
     def run(self) -> None:
         self._stop = False  # type: ignore[attr-defined]
         print("AgentX REPL. Type /help for commands. Ctrl+C to exit.")
@@ -157,6 +189,10 @@ class REPL:
                     print(f"unknown command: {cmd}")
                 continue
 
-            # Normal message
-            resp = self.agent.send(line, stream=True)
-            print(resp.content)
+            # Normal message (streaming handled via token events)
+            try:
+                self.agent.send(line, stream=True)
+            except KeyboardInterrupt:
+                print("\n[canceled]")
+            except Exception as e:
+                print(f"error: {e}")

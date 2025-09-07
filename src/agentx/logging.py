@@ -35,6 +35,8 @@ class RedactFilter(logging.Filter):
             if v:
                 redacted = redacted.replace(v, "***")
         record.msg = redacted
+        # Clear args to avoid %-formatting mismatch after rewriting message
+        record.args = ()
         return True
 
 
@@ -69,4 +71,3 @@ def setup_logging(level: str = "INFO", component_filter: Optional[str] = None, f
                 return record.name.startswith(component_filter)
 
         root.addFilter(ComponentFilter())
-
