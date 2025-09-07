@@ -40,3 +40,15 @@ EV_MODEL_UPDATED = "model.updated"         # { name: str }
 # History/session events
 EV_HISTORY_CLEAR = "history.clear"         # {}
 EV_HISTORY_CLEARED = "history.cleared"     # {}
+
+# Session events
+EV_SESSION_NEW = "session.new"              # { name?: str }
+EV_SESSION_CREATED = "session.created"      # { id: str, name: str }
+EV_SESSION_SAVE = "session.save"            # { name?: str }
+EV_SESSION_SAVED = "session.saved"          # { id: str, name: str }
+EV_SESSION_LOAD = "session.load"            # { id?: str, name?: str }
+EV_SESSION_LOADED = "session.loaded"        # { id: str, name: str, size: int }
+EV_SESSION_LIST = "session.list"            # {}
+EV_SESSION_LISTED = "session.listed"        # { sessions: [ { id, name, updated_at, size } ] }
+EV_SESSION_RENAME = "session.rename"        # { name: str }
+EV_SESSION_RENAMED = "session.renamed"      # { id: str, name: str }

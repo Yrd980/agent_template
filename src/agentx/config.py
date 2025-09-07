@@ -59,6 +59,11 @@ class LoggingConfig:
 
 
 @dataclass
+class SessionConfig:
+    autosave: bool = False
+
+
+@dataclass
 class Config:
     provider: str = "openai"
     model: Optional[str] = None
@@ -69,6 +74,7 @@ class Config:
     keys: Dict[str, str] = field(default_factory=dict)
     tui: TuiConfig = field(default_factory=TuiConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    session: SessionConfig = field(default_factory=SessionConfig)
 
     @staticmethod
     def default_paths() -> Dict[str, Path]:
@@ -140,6 +146,7 @@ class Config:
         backoff = _get(retries, "backoff", {})
         tui = _get(data, "tui", {})
         logging_cfg = _get(data, "logging", {})
+        session_cfg = _get(data, "session", {})
 
         return cls(
             provider=_get(data, "provider", "openai"),
@@ -168,6 +175,9 @@ class Config:
                 filter=_get(logging_cfg, "filter", None),
                 file=_get(logging_cfg, "file", None),
             ),
+            session=SessionConfig(
+                autosave=bool(_get(session_cfg, "autosave", False)),
+            ),
         )
 
     def validate(self) -> None:
@@ -189,4 +199,3 @@ class Config:
                     redacted[k] = v[:4] + "…" if len(v) > 8 else "***"
             d["keys"] = redacted
         return d
-

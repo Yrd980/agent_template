@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
 
 from ..agent import Agent
+from ..config import Config
+from ..providers import ChatMessage
 from ..events import (
     EV_CONFIG_RELOAD,
     EV_CONFIG_UPDATE,
@@ -16,6 +18,16 @@ from ..events import (
     EV_MODEL_UPDATED,
     EV_PROVIDER_SET,
     EV_PROVIDER_UPDATED,
+    EV_SESSION_CREATED,
+    EV_SESSION_LIST,
+    EV_SESSION_LISTED,
+    EV_SESSION_LOAD,
+    EV_SESSION_LOADED,
+    EV_SESSION_NEW,
+    EV_SESSION_RENAME,
+    EV_SESSION_RENAMED,
+    EV_SESSION_SAVE,
+    EV_SESSION_SAVED,
 )
 
 
@@ -53,6 +65,11 @@ class REPL:
         self.register(Command("config", "Print current config (redacted)", lambda s, a: s._cmd_config(a)))
         self.register(Command("stream", "Get/Set streaming: /stream [on|off]", lambda s, a: s._cmd_stream(a)))
         self.register(Command("system", "Get/Set system prompt: /system [text|clear]", lambda s, a: s._cmd_system(a)))
+        self.register(Command("autosave", "Get/Set autosave: /autosave [on|off]", lambda s, a: s._cmd_autosave(a)))
+        self.register(Command("save", "Save chat history to file: /save [path]", lambda s, a: s._cmd_save_history(a)))
+        self.register(Command("load", "Load chat history from file: /load [path]", lambda s, a: s._cmd_load_history(a)))
+        self.register(Command("sessions", "List saved sessions", lambda s, a: s._cmd_sessions(a)))
+        self.register(Command("session", "Manage session: new/save/load/rename", lambda s, a: s._cmd_session(a)))
 
     def _attach_bus_handlers(self) -> None:
         bus = self.agent.bus
@@ -82,12 +99,38 @@ class REPL:
             else:
                 print("updating config…")
 
+        def on_session_created(payload):
+            print(f"session created: {payload.get('name')} ({payload.get('id')})")
+
+        def on_session_saved(payload):
+            print(f"session saved: {payload.get('name')} ({payload.get('id')})")
+
+        def on_session_loaded(payload):
+            print(f"session loaded: {payload.get('name')} (messages: {payload.get('size')})")
+
+        def on_session_listed(payload):
+            items = payload.get("sessions", [])
+            if not items:
+                print("no sessions")
+                return
+            print("sessions:")
+            for it in items:
+                print(f"  {it['id']}  {it['name']}  ({it['size']})")
+
+        def on_session_renamed(payload):
+            print(f"session renamed: {payload.get('name')} ({payload.get('id')})")
+
         bus.subscribe(EV_PROVIDER_UPDATED, on_provider_updated)
         bus.subscribe(EV_MODEL_UPDATED, on_model_updated)
         bus.subscribe(EV_CONFIG_UPDATED, on_config_updated)
         bus.subscribe(EV_HISTORY_CLEARED, on_history_cleared)
         bus.subscribe(EV_CONFIG_RELOAD, on_config_reload)
         bus.subscribe(EV_CONFIG_UPDATE, on_config_update)
+        bus.subscribe(EV_SESSION_CREATED, on_session_created)
+        bus.subscribe(EV_SESSION_SAVED, on_session_saved)
+        bus.subscribe(EV_SESSION_LOADED, on_session_loaded)
+        bus.subscribe(EV_SESSION_LISTED, on_session_listed)
+        bus.subscribe(EV_SESSION_RENAMED, on_session_renamed)
 
         # Live token streaming with prefix
         def on_token(payload):
@@ -177,8 +220,52 @@ class REPL:
                     except ValueError:
                         val = v
             updates[k] = val
-        if updates:
-            self.agent.bus.publish(EV_CONFIG_UPDATE, {"data": updates})
+        if not updates:
+            return
+        # Persist to config.json (project-level preferred), then reload
+        changed_path = self._update_config_file(updates)
+        if changed_path:
+            print(f"wrote {changed_path}")
+        # Publish update for immediate in-memory effect, then reload to resync
+        self.agent.bus.publish(EV_CONFIG_UPDATE, {"data": updates})
+        self.agent.bus.publish(EV_CONFIG_RELOAD, {"overrides": {}})
+
+    def _update_config_file(self, updates: Dict[str, object]) -> Optional[str]:
+        import json
+        from pathlib import Path
+
+        paths = Config.default_paths()
+        target = paths["project_json"] if paths["project_json"].exists() else paths["user_json"]
+        if not target.exists():
+            # Create project config.json by default
+            target = paths["project_json"]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            base: Dict[str, object] = {}
+        else:
+            try:
+                base = json.loads(target.read_text())
+            except Exception:
+                base = {}
+
+        def set_path(d: Dict[str, object], path: str, value: object) -> None:
+            parts = path.split(".")
+            cur = d
+            for i, part in enumerate(parts):
+                is_last = i == len(parts) - 1
+                if is_last:
+                    cur[part] = value
+                else:
+                    nxt = cur.get(part)
+                    if not isinstance(nxt, dict):
+                        nxt = {}
+                        cur[part] = nxt
+                    cur = nxt  # type: ignore[assignment]
+
+        for k, v in updates.items():
+            set_path(base, k, v)
+
+        target.write_text(json.dumps(base, indent=2))
+        return str(target)
 
     def _cmd_cancel(self, args: str) -> None:  # noqa: ARG002
         if getattr(self.agent, "in_flight", False):
@@ -188,7 +275,8 @@ class REPL:
             print("No active reply to cancel.")
 
     def _cmd_status(self, args: str) -> None:  # noqa: ARG002
-        print(f"provider: {self.agent.cfg.provider}; model: {self.agent.cfg.model}; streaming: {self.agent.cfg.streaming}")
+        autosave = getattr(self.agent.cfg, "session", None) and self.agent.cfg.session.autosave
+        print(f"provider: {self.agent.cfg.provider}; model: {self.agent.cfg.model}; streaming: {self.agent.cfg.streaming}; autosave: {bool(autosave)}")
 
     def _cmd_config(self, args: str) -> None:  # noqa: ARG002
         d = self.agent.cfg.to_dict(redact_sensitive=True)
@@ -209,6 +297,21 @@ class REPL:
             return
         print(f"streaming set to {self.agent.cfg.streaming}")
 
+    def _cmd_autosave(self, args: str) -> None:
+        a = args.strip().lower()
+        if not a:
+            val = getattr(self.agent.cfg, "session", None) and self.agent.cfg.session.autosave
+            print(f"autosave: {bool(val)}")
+            return
+        if a in {"on", "true", "1"}:
+            self.agent.cfg.session.autosave = True
+        elif a in {"off", "false", "0"}:
+            self.agent.cfg.session.autosave = False
+        else:
+            print("usage: /autosave [on|off]")
+            return
+        print(f"autosave set to {self.agent.cfg.session.autosave}")
+
     def _cmd_system(self, args: str) -> None:
         s = args.strip()
         if not s:
@@ -223,6 +326,80 @@ class REPL:
         self.agent.history = [m for m in self.agent.history if m.role != "system"]
         self.agent.add_system_message(s)
         print("system prompt set")
+
+    def _cmd_save_history(self, args: str) -> None:
+        import json
+        from pathlib import Path
+        path = args.strip() or "history.json"
+        p = Path(path)
+        msgs = [
+            {"role": m.role, "content": m.content}
+            for m in self.agent.history
+        ]
+        p.write_text(json.dumps({"messages": msgs}, indent=2))
+        print(f"saved history to {p}")
+
+    def _cmd_load_history(self, args: str) -> None:
+        import json
+        from pathlib import Path
+        path = args.strip() or "history.json"
+        p = Path(path)
+        if not p.exists():
+            print(f"file not found: {p}")
+            return
+        try:
+            data = json.loads(p.read_text())
+            msgs = data.get("messages")
+            if isinstance(msgs, list):
+                sys_msgs = [m for m in msgs if isinstance(m, dict) and m.get("role") == "system"]
+                non_sys = [m for m in msgs if isinstance(m, dict) and m.get("role") != "system"]
+                ordered = (sys_msgs[:1] + non_sys) if sys_msgs else non_sys
+                new_history: List[ChatMessage] = []
+                for m in ordered:
+                    role = str(m.get("role", "user"))
+                    content = str(m.get("content", ""))
+                    if role not in ("system", "user", "assistant"):
+                        continue
+                    new_history.append(ChatMessage(role=role, content=content))
+                self.agent.history = new_history
+                print(f"loaded {len(new_history)} messages from {p}")
+        except Exception as e:
+            print(f"error loading {p}: {e}")
+
+    def _cmd_sessions(self, args: str) -> None:  # noqa: ARG002
+        self.agent.bus.publish(EV_SESSION_LIST, {})
+
+    def _cmd_session(self, args: str) -> None:
+        parts = shlex.split(args)
+        if not parts:
+            print("usage: /session [new|save|load|rename] [args]")
+            return
+        op = parts[0]
+        rest = parts[1:]
+        if op == "new":
+            name = " ".join(rest) if rest else None
+            self.agent.bus.publish(EV_SESSION_NEW, {"name": name} if name else {})
+        elif op == "save":
+            name = " ".join(rest) if rest else None
+            self.agent.bus.publish(EV_SESSION_SAVE, {"name": name} if name else {})
+        elif op == "load":
+            if not rest:
+                print("usage: /session load <id|name>")
+                return
+            target = " ".join(rest)
+            # heuristic: if looks like id prefix (hex), pass as id; else as name
+            if all(c in "0123456789abcdef" for c in target.lower()) and len(target) >= 6:
+                self.agent.bus.publish(EV_SESSION_LOAD, {"id": target})
+            else:
+                self.agent.bus.publish(EV_SESSION_LOAD, {"name": target})
+        elif op == "rename":
+            if not rest:
+                print("usage: /session rename <new name>")
+                return
+            name = " ".join(rest)
+            self.agent.bus.publish(EV_SESSION_RENAME, {"name": name})
+        else:
+            print("usage: /session [new|save|load|rename] [args]")
 
     def run(self) -> None:
         self._stop = False  # type: ignore[attr-defined]

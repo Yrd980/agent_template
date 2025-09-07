@@ -12,5 +12,6 @@
     "llama": "https://api.together.xyz/v1"
   },
   "tui": { "history_limit": 200, "show_timestamps": false },
+  "session": { "autosave": false },
   "logging": { "level": "INFO", "filter": null, "file": null }
 }

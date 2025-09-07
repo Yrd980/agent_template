@@ -4,7 +4,7 @@ import logging
 from typing import List
 
 from .config import Config
-from .events import EventBus
+from .events import EventBus, EV_SESSION_SAVE
 from .providers import ChatMessage, ChatRequest, ChatResponse, Provider, ProviderFactory
 
 
@@ -17,6 +17,8 @@ class Agent:
         self.log = logging.getLogger("agent")
         self.in_flight: bool = False
         self._cancel_requested: bool = False
+        self.session_id: str | None = None
+        self.session_name: str | None = None
 
     def cancel(self) -> None:
         self._cancel_requested = True
@@ -26,10 +28,26 @@ class Agent:
 
     def add_user_message(self, content: str) -> None:
         self.history.append(ChatMessage(role="user", content=content))
+        self._enforce_history_limit()
 
     def add_system_message(self, content: str) -> None:
         # Ensure system prompt is at the front so providers honor it
         self.history.insert(0, ChatMessage(role="system", content=content))
+        self._enforce_history_limit(system_keep=True)
+
+    def _enforce_history_limit(self, system_keep: bool = True) -> None:
+        limit = int(self.cfg.tui.history_limit or 0)
+        if limit and len(self.history) > limit:
+            if system_keep:
+                # Keep first system if present
+                sys_msgs = [m for m in self.history if m.role == "system"]
+                first_system = sys_msgs[0] if sys_msgs else None
+                # keep last (limit-1) non-system + optional system at start
+                tail_needed = limit - (1 if first_system else 0)
+                tail = [m for m in self.history if m.role != "system"][-max(tail_needed, 0):]
+                self.history = ([first_system] if first_system else []) + tail
+            else:
+                self.history = self.history[-limit:]
 
     def send(self, content: str, *, stream: bool | None = None) -> ChatResponse:
         self.add_user_message(content)
@@ -62,13 +80,23 @@ class Agent:
                 resp = ChatResponse(content=content, model=self.cfg.model)
                 if canceled:
                     # Do not record assistant message on cancel
+                    self._autosave_if_enabled()
                     return resp
             else:
                 resp = self.provider.complete(req)
         finally:
             self.in_flight = False
         self.history.append(ChatMessage(role="assistant", content=resp.content))
+        self._enforce_history_limit()
+        self._autosave_if_enabled()
         return resp
+
+    def _autosave_if_enabled(self) -> None:
+        if getattr(self.cfg, "session", None) and self.cfg.session.autosave and self.bus:
+            try:
+                self.bus.publish(EV_SESSION_SAVE, {})
+            except Exception:
+                pass
 
     @classmethod
     def from_config(cls, cfg: Config) -> "Agent":

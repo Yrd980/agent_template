@@ -9,6 +9,8 @@ from .config import Config
 from .logging import setup_logging
 from .tui.repl import REPL
 from .runtime.listeners import attach_default_listeners
+from .runtime.sessions import attach_session_listeners
+from .session import SessionStore
 
 
 def parse_args() -> argparse.Namespace:
@@ -48,6 +50,9 @@ def main() -> None:
 
     agent = Agent.from_config(cfg)
     attach_default_listeners(agent)
+    # Session store under ~/.agent/sessions
+    store = SessionStore(Path.home() / ".agent" / "sessions")
+    attach_session_listeners(agent, store)
     repl = REPL(agent)
     repl.run()
 
