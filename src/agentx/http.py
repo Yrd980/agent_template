@@ -17,11 +17,20 @@ def _join_url(base: str, path: str) -> str:
     return f"{base.rstrip('/')}/{path.lstrip('/')}"
 
 
-def _should_retry(status: Optional[int], exc: Optional[BaseException]) -> bool:
+def _should_retry(
+    status: Optional[int],
+    exc: Optional[BaseException],
+    *,
+    enabled: bool,
+    status_codes: Optional[set[int]],
+    include_5xx: bool,
+) -> bool:
+    if not enabled:
+        return False
     if status is not None:
-        if status in (408, 409, 425, 429):
+        if status_codes and status in status_codes:
             return True
-        if 500 <= status < 600:
+        if include_5xx and 500 <= status < 600:
             return True
     if exc is not None:
         # URLError, timeouts, transient network failures
@@ -46,6 +55,9 @@ def post_json(
     max_attempts: int,
     backoff: Tuple[int, float, bool],
     accept_sse: bool = False,
+    retry_enabled: bool = True,
+    retry_status_codes: Optional[set[int]] = None,
+    retry_include_5xx: bool = True,
 ) -> request.addinfourl:
     url = _join_url(base_url, path)
     data = _json.dumps(payload).encode("utf-8")
@@ -67,15 +79,14 @@ def post_json(
             last_status = e.code
             body = e.read().decode("utf-8", errors="ignore")
             log.warning("HTTPError %s on %s: %s", e.code, url, body)
-            if attempt >= max_attempts or not _should_retry(e.code, None):
+            if attempt >= max_attempts or not _should_retry(e.code, None, enabled=retry_enabled, status_codes=retry_status_codes, include_5xx=retry_include_5xx):
                 raise ProviderError("HTTPError", status=e.code, body=body)
         except error.URLError as e:
             last_exc = e
             log.warning("URLError on %s: %s", url, e)
-            if attempt >= max_attempts or not _should_retry(None, e):
+            if attempt >= max_attempts or not _should_retry(None, e, enabled=retry_enabled, status_codes=retry_status_codes, include_5xx=retry_include_5xx):
                 raise ProviderError(f"Network error: {e}")
         _sleep_backoff(attempt, base_ms=base_ms, factor=factor, jitter=jitter)
 
     # If we exit loop without return/raise (shouldn't happen), raise generic
     raise ProviderError("Request failed", status=last_status, body=str(last_exc) if last_exc else None)
-

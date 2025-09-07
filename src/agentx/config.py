@@ -35,8 +35,12 @@ class BackoffConfig:
 
 @dataclass
 class RetryConfig:
+    enabled: bool = True
     max_attempts: int = 3
     backoff: BackoffConfig = field(default_factory=BackoffConfig)
+    status_codes: list[int] = field(default_factory=lambda: [408, 409, 425, 429])
+    include_5xx: bool = True
+    providers: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # per-provider overrides
 
 
 @dataclass
@@ -157,12 +161,16 @@ class Config:
                 read_ms=int(_get(timeouts, "read_ms", 60_000)),
             ),
             retries=RetryConfig(
+                enabled=bool(_get(retries, "enabled", True)),
                 max_attempts=int(_get(retries, "max_attempts", 3)),
                 backoff=BackoffConfig(
                     base_ms=int(_get(backoff, "base_ms", 200)),
                     factor=float(_get(backoff, "factor", 2.0)),
                     jitter=bool(_get(backoff, "jitter", True)),
                 ),
+                status_codes=list(_get(retries, "status_codes", [408, 409, 425, 429])),
+                include_5xx=bool(_get(retries, "include_5xx", True)),
+                providers=dict(_get(retries, "providers", {})),
             ),
             endpoints=dict(_get(data, "endpoints", {})),
             keys=dict(_get(data, "keys", {})),

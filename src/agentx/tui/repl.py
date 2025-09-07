@@ -66,6 +66,7 @@ class REPL:
         self.register(Command("stream", "Get/Set streaming: /stream [on|off]", lambda s, a: s._cmd_stream(a)))
         self.register(Command("system", "Get/Set system prompt: /system [text|clear]", lambda s, a: s._cmd_system(a)))
         self.register(Command("autosave", "Get/Set autosave: /autosave [on|off]", lambda s, a: s._cmd_autosave(a)))
+        self.register(Command("retry", "Get/Set retries: /retry [on|off]", lambda s, a: s._cmd_retry(a)))
         self.register(Command("save", "Save chat history to file: /save [path]", lambda s, a: s._cmd_save_history(a)))
         self.register(Command("load", "Load chat history from file: /load [path]", lambda s, a: s._cmd_load_history(a)))
         self.register(Command("sessions", "List saved sessions", lambda s, a: s._cmd_sessions(a)))
@@ -276,7 +277,8 @@ class REPL:
 
     def _cmd_status(self, args: str) -> None:  # noqa: ARG002
         autosave = getattr(self.agent.cfg, "session", None) and self.agent.cfg.session.autosave
-        print(f"provider: {self.agent.cfg.provider}; model: {self.agent.cfg.model}; streaming: {self.agent.cfg.streaming}; autosave: {bool(autosave)}")
+        retries = getattr(self.agent.cfg, "retries", None) and self.agent.cfg.retries.enabled
+        print(f"provider: {self.agent.cfg.provider}; model: {self.agent.cfg.model}; streaming: {self.agent.cfg.streaming}; autosave: {bool(autosave)}; retries: {bool(retries)}")
 
     def _cmd_config(self, args: str) -> None:  # noqa: ARG002
         d = self.agent.cfg.to_dict(redact_sensitive=True)
@@ -311,6 +313,23 @@ class REPL:
             print("usage: /autosave [on|off]")
             return
         print(f"autosave set to {self.agent.cfg.session.autosave}")
+
+    def _cmd_retry(self, args: str) -> None:
+        a = args.strip().lower()
+        if not a:
+            val = getattr(self.agent.cfg, "retries", None) and self.agent.cfg.retries.enabled
+            print(f"retries: {bool(val)}")
+            return
+        if a in {"on", "true", "1"}:
+            self.agent.cfg.retries.enabled = True
+            self._update_config_file({"retries.enabled": True})
+        elif a in {"off", "false", "0"}:
+            self.agent.cfg.retries.enabled = False
+            self._update_config_file({"retries.enabled": False})
+        else:
+            print("usage: /retry [on|off]")
+            return
+        print(f"retries set to {self.agent.cfg.retries.enabled}")
 
     def _cmd_system(self, args: str) -> None:
         s = args.strip()

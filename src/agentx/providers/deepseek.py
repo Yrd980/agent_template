@@ -44,6 +44,13 @@ class DeepSeekProvider(Provider):
         }
         if not self._api_key():
             raise ProviderError("Missing DEEPSEEK_API_KEY")
+        # Resolve retry policy with per-provider overrides
+        retries = self.config.retries
+        prov = retries.providers.get("deepseek", {}) if hasattr(retries, "providers") else {}
+        retry_enabled = bool(prov.get("enabled", retries.enabled))
+        status_codes = set(prov.get("status_codes", retries.status_codes)) if hasattr(retries, "status_codes") else None
+        include_5xx = bool(prov.get("include_5xx", retries.include_5xx if hasattr(retries, "include_5xx") else True))
+
         resp = post_json(
             base_url=self._base_url(),
             path=path,
@@ -53,6 +60,9 @@ class DeepSeekProvider(Provider):
             max_attempts=self.config.retries.max_attempts,
             backoff=(self.config.retries.backoff.base_ms, self.config.retries.backoff.factor, self.config.retries.backoff.jitter),
             accept_sse=stream,
+            retry_enabled=retry_enabled,
+            retry_status_codes=status_codes,
+            retry_include_5xx=include_5xx,
         )
         return resp
 
