@@ -8,6 +8,10 @@ from typing import AsyncGenerator, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
+from pathlib import Path
 
 from .api.routes import APIDependencies, router as api_router, set_dependencies
 from .api.websocket import WebSocketManager
@@ -139,6 +143,27 @@ class AgentServer:
         
         # Include API routes
         app.include_router(api_router)
+        
+        # Static files serving for React frontend
+        frontend_dist_path = Path(__file__).parent.parent.parent / "frontend_web" / "agent-web" / "dist"
+        if frontend_dist_path.exists():
+            # Serve static files
+            app.mount("/static", StaticFiles(directory=str(frontend_dist_path / "assets")), name="static")
+            
+            # Serve React app for all non-API routes
+            @app.get("/{full_path:path}")
+            async def serve_react_app(full_path: str):
+                # Don't serve React app for API routes or WebSocket
+                if full_path.startswith(("api/", "ws", "health")):
+                    return {"error": "Not found"}
+                
+                # Serve index.html for all other routes (React Router will handle routing)
+                index_path = frontend_dist_path / "index.html"
+                if index_path.exists():
+                    return FileResponse(str(index_path))
+                return {"error": "Frontend not built"}
+        else:
+            logger.warning("React frontend not found. Run 'npm run build' in frontend_web/agent-web/")
         
         # WebSocket endpoint
         @app.websocket("/ws")

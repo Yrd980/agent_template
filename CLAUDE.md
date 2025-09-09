@@ -2,13 +2,14 @@
 
 ## Overview
 
-This is a **production-ready** comprehensive AI agent template system with terminal frontend and Python backend. The system provides a complete framework for building AI agents with multi-model support, tool calling capabilities, real-time communication, and advanced state management.
+This is a **production-ready** comprehensive AI agent template system with both React web frontend and terminal frontend, backed by a powerful Python backend. The system provides a complete framework for building AI agents with multi-model support, tool calling capabilities, real-time communication, and advanced state management.
 
 ## Status: ✅ **COMPLETED & FULLY FUNCTIONAL**
 
 All major components have been implemented, tested, and are working correctly:
 
 - ✅ **Server**: FastAPI server starts successfully on `http://127.0.0.1:8000`  
+- ✅ **Web Frontend**: React-based web interface with real-time chat, task monitoring, and system stats
 - ✅ **CLI**: All CLI commands (`agent-template`, `agent-server`, `agent-client`) functional
 - ✅ **Tests**: 100% import test success rate with comprehensive coverage
 - ✅ **Configuration**: Environment-based config with Pydantic v2 compliance
@@ -62,6 +63,15 @@ All major components have been implemented, tested, and are working correctly:
    - ✅ LRU eviction and capacity management
 
 ### Frontend
+
+- **React Web Interface** (`frontend_web/agent-web/`)
+  - ✅ Modern React-based web UI with TypeScript support
+  - ✅ Real-time chat interface with message streaming
+  - ✅ Session management and history
+  - ✅ Task monitoring with live progress updates
+  - ✅ System statistics dashboard
+  - ✅ WebSocket integration for real-time updates
+  - ✅ Responsive design with Tailwind CSS
 
 - **Terminal Interface** (`src/agent_template/frontend/terminal_app.py`)
   - ✅ Rich/Textual-based terminal UI with task monitoring
@@ -170,29 +180,53 @@ uv pip install -e ".[dev]"
 
 ### Running the System
 
-1. **Start the Server**:
-   ```bash
-   agent-server
-   # Server starts on http://127.0.0.1:8000
-   ```
+#### Full Stack (Web Interface + Backend)
+```bash
+# Build and start complete system with web interface
+./scripts/start-full-stack.sh
 
-2. **Start the Terminal Client**:
-   ```bash
-   agent-client
-   # Connects to server via WebSocket
-   ```
+# Web interface available at: http://127.0.0.1:8000
+# API endpoints: http://127.0.0.1:8000/api/v1/*
+# WebSocket: ws://127.0.0.1:8000/ws
+```
 
-3. **CLI Commands**:
-   ```bash
-   # System status check
-   agent-template status
-   
-   # Test model connectivity  
-   agent-template test-model --provider openai
-   
-   # Initialize new project
-   agent-template init
-   ```
+#### Development Mode
+```bash
+# Start backend server
+agent-server
+
+# In another terminal, start React dev server
+./scripts/dev-frontend.sh
+# Frontend dev server: http://localhost:5173
+# Backend API server: http://127.0.0.1:8000
+```
+
+#### Terminal-Only Mode
+```bash
+# Start backend server
+agent-server
+
+# Start terminal client
+agent-client
+```
+
+#### Build Frontend Only
+```bash
+# Build React frontend for production
+./scripts/build-frontend.sh
+```
+
+#### CLI Commands
+```bash
+# System status check
+agent-template status
+
+# Test model connectivity  
+agent-template test-model --provider openai
+
+# Initialize new project
+agent-template init
+```
 
 ### Development Commands
 
@@ -241,6 +275,21 @@ uvicorn agent_template.server:get_server --reload
 ## Project Structure
 
 ```
+frontend_web/                   # ✅ React Web Frontend
+├── agent-web/                  # ✅ React application
+│   ├── src/                    # ✅ React source code
+│   │   ├── components/         # ✅ React components (Chat, Sessions, Tasks, Stats)
+│   │   ├── hooks/              # ✅ Custom React hooks for API and WebSocket
+│   │   ├── services/           # ✅ API client and WebSocket service
+│   │   ├── types/              # ✅ TypeScript type definitions
+│   │   └── utils/              # ✅ Utility functions
+│   ├── public/                 # ✅ Static assets
+│   ├── dist/                   # ✅ Production build output
+│   ├── package.json            # ✅ Node.js dependencies
+│   ├── vite.config.ts          # ✅ Vite build configuration
+│   ├── tailwind.config.js      # ✅ Tailwind CSS configuration
+│   └── tsconfig.json           # ✅ TypeScript configuration
+
 src/agent_template/
 ├── __init__.py                 # ✅ Main package exports
 ├── config.py                   # ✅ Pydantic v2 configuration system  
@@ -284,7 +333,10 @@ scripts/                     # Development and deployment scripts
 ├── setup.sh                 # Environment setup automation
 ├── test.sh                  # Test runner with coverage
 ├── lint.sh                  # Code quality and formatting
-└── clean.sh                 # Cleanup temporary files
+├── clean.sh                 # Cleanup temporary files
+├── build-frontend.sh        # ✅ Build React frontend for production
+├── dev-frontend.sh          # ✅ Start React development server
+└── start-full-stack.sh      # ✅ Start complete system (backend + web UI)
 
 data/                        # ✅ Runtime data directory (auto-created)
 ├── logs/                    # Application logs
